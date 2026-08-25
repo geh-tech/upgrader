@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Upgrader Game</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .tab { display: none; margin-top: 20px; }
+    .tab.active { display: block; }
+    .btn { margin: 5px; padding: 8px 12px; background: #eee; border: 1px solid #aaa; cursor: pointer; }
+    .btn:hover { background: #ddd; }
+    .item { border: 1px solid #ccc; padding: 8px; margin: 5px 0; background: #f9f9f9; }
+    .item button { margin-left: 10px; }
+    #loginForm { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loginSection">
+      <h2>Вход / Регистрация</h2>
+      <input type="text" id="nick" placeholder="Ник"><br>
+      <input type="password" id="pass" placeholder="Пароль"><br>
+      <button onclick="login()">Войти</button>
+      <button onclick="register()">Регистрация</button>
+    </div>
+
+    <div id="gameSection" style="display:none;">
+      <div>
+        <button onclick="showTab('profile')">Профиль</button>
+        <button onclick="showTab('inventory')">Инвентарь</button>
+        <button onclick="showTab('upgrade')">Апгрейд</button>
+        <button onclick="showTab('battle')">Бой</button>
+        <button onclick="showTab('top')">Топ</button>
+        <button onclick="logout()">Выйти</button>
+      </div>
+
+      <div id="profile" class="tab active">
+        <h3>Профиль</h3>
+        <div id="profileInfo"></div>
+      </div>
+
+      <div id="inventory" class="tab">
+        <h3>Инвентарь</h3>
+        <div id="inventoryList"></div>
+      </div>
+
+      <div id="upgrade" class="tab">
+        <h3>Апгрейд предметов (шанс 50%)</h3>
+        <div id="upgradeList"></div>
+      </div>
+
+      <div id="battle" class="tab">
+        <h3>Бой 1v1</h3>
+        <input type="text" id="opponentNick" placeholder="Ник противника">
+        <button onclick="createBattle()">Создать бой</button>
+        <div id="battleStatus"></div>
+        <button onclick="makeAction()" id="actionBtn" style="display:none;">Сделать ход</button>
+      </div>
+
+      <div id="top" class="tab">
+        <h3>Топ игроков</h3>
+        <div id="topList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/client.js"></script>
+</body>
+</html>
