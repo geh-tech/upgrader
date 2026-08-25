@@ -4,8 +4,6 @@
     "buildCommand": "mvn clean package -DskipTests && cp target/upgrader-game-1.0-SNAPSHOT.jar target/app.jar"
   },
   "deploy": {
-    "startCommand": "java -jar target/app.jar",
-    "healthcheckPath": "/",
-    "restartPolicyType": "ON_FAILURE"
+    "startCommand": "java -jar target/app.jar"
   }
 }
