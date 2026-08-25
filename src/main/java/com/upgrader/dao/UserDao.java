@@ -12,13 +12,13 @@ public class UserDao {
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      "INSERT INTO users (nickname, password, level, coins, exp, max_hp, current_hp) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
-            stmt.setString(1, user.getNickname());
-            stmt.setString(2, user.getPassword());
-            stmt.setInt(3, user.getLevel());
-            stmt.setInt(4, user.getCoins());
-            stmt.setInt(5, user.getExp());
-            stmt.setInt(6, user.getMaxHp());
-            stmt.setInt(7, user.getCurrentHp());
+            stmt.setString(1, user.nickname);
+            stmt.setString(2, user.password);
+            stmt.setInt(3, user.level);
+            stmt.setInt(4, user.coins);
+            stmt.setInt(5, user.exp);
+            stmt.setInt(6, user.maxHp);
+            stmt.setInt(7, user.currentHp);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -35,14 +35,14 @@ public class UserDao {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setNickname(rs.getString("nickname"));
-                user.setPassword(rs.getString("password"));
-                user.setLevel(rs.getInt("level"));
-                user.setCoins(rs.getInt("coins"));
-                user.setExp(rs.getInt("exp"));
-                user.setMaxHp(rs.getInt("max_hp"));
-                user.setCurrentHp(rs.getInt("current_hp"));
+                user.id = rs.getInt("id");
+                user.nickname = rs.getString("nickname");
+                user.password = rs.getString("password");
+                user.level = rs.getInt("level");
+                user.coins = rs.getInt("coins");
+                user.exp = rs.getInt("exp");
+                user.maxHp = rs.getInt("max_hp");
+                user.currentHp = rs.getInt("current_hp");
                 return user;
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -56,14 +56,14 @@ public class UserDao {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setNickname(rs.getString("nickname"));
-                user.setPassword(rs.getString("password"));
-                user.setLevel(rs.getInt("level"));
-                user.setCoins(rs.getInt("coins"));
-                user.setExp(rs.getInt("exp"));
-                user.setMaxHp(rs.getInt("max_hp"));
-                user.setCurrentHp(rs.getInt("current_hp"));
+                user.id = rs.getInt("id");
+                user.nickname = rs.getString("nickname");
+                user.password = rs.getString("password");
+                user.level = rs.getInt("level");
+                user.coins = rs.getInt("coins");
+                user.exp = rs.getInt("exp");
+                user.maxHp = rs.getInt("max_hp");
+                user.currentHp = rs.getInt("current_hp");
                 return user;
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -74,12 +74,12 @@ public class UserDao {
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      "UPDATE users SET level=?, coins=?, exp=?, max_hp=?, current_hp=? WHERE id=?")) {
-            stmt.setInt(1, user.getLevel());
-            stmt.setInt(2, user.getCoins());
-            stmt.setInt(3, user.getExp());
-            stmt.setInt(4, user.getMaxHp());
-            stmt.setInt(5, user.getCurrentHp());
-            stmt.setInt(6, user.getId());
+            stmt.setInt(1, user.level);
+            stmt.setInt(2, user.coins);
+            stmt.setInt(3, user.exp);
+            stmt.setInt(4, user.maxHp);
+            stmt.setInt(5, user.currentHp);
+            stmt.setInt(6, user.id);
             stmt.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
     }
@@ -92,13 +92,13 @@ public class UserDao {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setNickname(rs.getString("nickname"));
-                user.setLevel(rs.getInt("level"));
-                user.setCoins(rs.getInt("coins"));
-                user.setExp(rs.getInt("exp"));
-                user.setMaxHp(rs.getInt("max_hp"));
-                user.setCurrentHp(rs.getInt("current_hp"));
+                user.id = rs.getInt("id");
+                user.nickname = rs.getString("nickname");
+                user.level = rs.getInt("level");
+                user.coins = rs.getInt("coins");
+                user.exp = rs.getInt("exp");
+                user.maxHp = rs.getInt("max_hp");
+                user.currentHp = rs.getInt("current_hp");
                 list.add(user);
             }
         } catch (SQLException e) { e.printStackTrace(); }

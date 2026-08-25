@@ -1,14 +1,12 @@
 package com.upgrader.models;
 
 public class Item {
-    private int id;
-    private String name;
-    private String slot;
-    private int armor;
-    private int damage;
-    private String rarity;
-    private int basePrice;
-    private String textureUrl;
-
-    // конструкторы, геттеры, сеттеры (опущены для краткости)
+    public int id;
+    public String name;
+    public String slot;
+    public int armor;
+    public int damage;
+    public String rarity;
+    public int basePrice;
+    public String textureUrl;
 }

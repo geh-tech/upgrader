@@ -51,10 +51,10 @@ public class BattleDao {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 Battle b = new Battle();
-                b.setId(rs.getInt("id"));
-                b.setType(rs.getString("type"));
-                b.setStatus(rs.getString("status"));
-                b.setCreatedAt(rs.getTimestamp("created_at"));
+                b.id = rs.getInt("id");
+                b.type = rs.getString("type");
+                b.status = rs.getString("status");
+                b.createdAt = rs.getTimestamp("created_at");
                 return b;
             }
         } catch (SQLException e) { e.printStackTrace(); }

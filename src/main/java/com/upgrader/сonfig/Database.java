@@ -79,20 +79,20 @@ public class Database {
             try (Connection conn = getConnection()) {
                 for (Item item : items) {
                     PreparedStatement check = conn.prepareStatement("SELECT id FROM items WHERE id = ?");
-                    check.setInt(1, item.getId());
+                    check.setInt(1, item.id);
                     ResultSet rs = check.executeQuery();
                     if (!rs.next()) {
                         PreparedStatement insert = conn.prepareStatement(
                                 "INSERT INTO items (id, name, slot, armor, damage, rarity, base_price, texture_url) " +
                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                        insert.setInt(1, item.getId());
-                        insert.setString(2, item.getName());
-                        insert.setString(3, item.getSlot());
-                        insert.setInt(4, item.getArmor());
-                        insert.setInt(5, item.getDamage());
-                        insert.setString(6, item.getRarity());
-                        insert.setInt(7, item.getBasePrice());
-                        insert.setString(8, item.getTextureUrl());
+                        insert.setInt(1, item.id);
+                        insert.setString(2, item.name);
+                        insert.setString(3, item.slot);
+                        insert.setInt(4, item.armor);
+                        insert.setInt(5, item.damage);
+                        insert.setString(6, item.rarity);
+                        insert.setInt(7, item.basePrice);
+                        insert.setString(8, item.textureUrl);
                         insert.executeUpdate();
                     }
                 }

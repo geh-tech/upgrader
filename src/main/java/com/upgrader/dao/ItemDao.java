@@ -15,14 +15,14 @@ public class ItemDao {
              ResultSet rs = stmt.executeQuery("SELECT * FROM items")) {
             while (rs.next()) {
                 Item item = new Item();
-                item.setId(rs.getInt("id"));
-                item.setName(rs.getString("name"));
-                item.setSlot(rs.getString("slot"));
-                item.setArmor(rs.getInt("armor"));
-                item.setDamage(rs.getInt("damage"));
-                item.setRarity(rs.getString("rarity"));
-                item.setBasePrice(rs.getInt("base_price"));
-                item.setTextureUrl(rs.getString("texture_url"));
+                item.id = rs.getInt("id");
+                item.name = rs.getString("name");
+                item.slot = rs.getString("slot");
+                item.armor = rs.getInt("armor");
+                item.damage = rs.getInt("damage");
+                item.rarity = rs.getString("rarity");
+                item.basePrice = rs.getInt("base_price");
+                item.textureUrl = rs.getString("texture_url");
                 list.add(item);
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -36,14 +36,14 @@ public class ItemDao {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 Item item = new Item();
-                item.setId(rs.getInt("id"));
-                item.setName(rs.getString("name"));
-                item.setSlot(rs.getString("slot"));
-                item.setArmor(rs.getInt("armor"));
-                item.setDamage(rs.getInt("damage"));
-                item.setRarity(rs.getString("rarity"));
-                item.setBasePrice(rs.getInt("base_price"));
-                item.setTextureUrl(rs.getString("texture_url"));
+                item.id = rs.getInt("id");
+                item.name = rs.getString("name");
+                item.slot = rs.getString("slot");
+                item.armor = rs.getInt("armor");
+                item.damage = rs.getInt("damage");
+                item.rarity = rs.getString("rarity");
+                item.basePrice = rs.getInt("base_price");
+                item.textureUrl = rs.getString("texture_url");
                 return item;
             }
         } catch (SQLException e) { e.printStackTrace(); }

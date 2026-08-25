@@ -16,11 +16,11 @@ public class InventoryDao {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 InventoryItem ii = new InventoryItem();
-                ii.setId(rs.getInt("id"));
-                ii.setUserId(rs.getInt("user_id"));
-                ii.setItemId(rs.getInt("item_id"));
-                ii.setUpgradeLevel(rs.getInt("upgrade_level"));
-                ii.setEquipped(rs.getBoolean("is_equipped"));
+                ii.id = rs.getInt("id");
+                ii.userId = rs.getInt("user_id");
+                ii.itemId = rs.getInt("item_id");
+                ii.upgradeLevel = rs.getInt("upgrade_level");
+                ii.equipped = rs.getBoolean("is_equipped");
                 list.add(ii);
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -34,11 +34,11 @@ public class InventoryDao {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 InventoryItem ii = new InventoryItem();
-                ii.setId(rs.getInt("id"));
-                ii.setUserId(rs.getInt("user_id"));
-                ii.setItemId(rs.getInt("item_id"));
-                ii.setUpgradeLevel(rs.getInt("upgrade_level"));
-                ii.setEquipped(rs.getBoolean("is_equipped"));
+                ii.id = rs.getInt("id");
+                ii.userId = rs.getInt("user_id");
+                ii.itemId = rs.getInt("item_id");
+                ii.upgradeLevel = rs.getInt("upgrade_level");
+                ii.equipped = rs.getBoolean("is_equipped");
                 return ii;
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -81,7 +81,6 @@ public class InventoryDao {
         } catch (SQLException e) { e.printStackTrace(); }
     }
 
-    // Получить экипированные предметы пользователя для передачи при смерти
     public static List<InventoryItem> getEquippedItems(int userId) {
         List<InventoryItem> list = new ArrayList<>();
         try (Connection conn = Database.getConnection();
@@ -90,11 +89,11 @@ public class InventoryDao {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 InventoryItem ii = new InventoryItem();
-                ii.setId(rs.getInt("id"));
-                ii.setUserId(rs.getInt("user_id"));
-                ii.setItemId(rs.getInt("item_id"));
-                ii.setUpgradeLevel(rs.getInt("upgrade_level"));
-                ii.setEquipped(true);
+                ii.id = rs.getInt("id");
+                ii.userId = rs.getInt("user_id");
+                ii.itemId = rs.getInt("item_id");
+                ii.upgradeLevel = rs.getInt("upgrade_level");
+                ii.equipped = true;
                 list.add(ii);
             }
         } catch (SQLException e) { e.printStackTrace(); }
