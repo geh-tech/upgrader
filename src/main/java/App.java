@@ -732,7 +732,8 @@ public class App {
             return "OK";
         });
 
-        // Статус боя
+        // Статус
+        //
         get("/api/battle/status/:battleId", (req, res) -> {
             int battleId = Integer.parseInt(req.params("battleId"));
             Object status = GameService.getBattleStatus(battleId);
