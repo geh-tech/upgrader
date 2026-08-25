@@ -5,6 +5,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const HOST = '0.0.0.0'; // <-- слушаем все интерфейсы
 
 // ===== БАЗА ДАННЫХ =====
 const db = new sqlite3.Database('database.db');
@@ -56,7 +57,6 @@ function generateItem(slot) {
     { name: 'Эпический', armor: 10, damage: 10, weight: 1 },
     { name: 'Легендарный', armor: 15, damage: 15, weight: 0.5 },
   ];
-  // Выбор редкости с весом
   let totalWeight = rarities.reduce((sum, r) => sum + r.weight, 0);
   let rand = Math.random() * totalWeight;
   let rarity = rarities[0];
@@ -137,8 +137,13 @@ app.use(session({
   secret: 'upgrader-secret',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false } // на Railway https, но для локального теста false
+  cookie: { secure: false } // на Railway используется HTTPS, но для локального теста false
 }));
+
+// ===== КОРНЕВОЙ МАРШРУТ ДЛЯ ПРОВЕРКИ =====
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // ===== API =====
 
@@ -150,7 +155,6 @@ app.post('/api/register', (req, res) => {
     if (user) return res.status(400).json({ error: 'Ник занят' });
     db.run(`INSERT INTO users (nickname, password) VALUES (?, ?)`, [nickname, password], function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      // Даём стартовый предмет
       const item = generateItem('weapon1');
       addItem(this.lastID, item, () => {});
       res.json({ success: true });
@@ -188,10 +192,8 @@ app.get('/api/inventory', (req, res) => {
 app.post('/api/equip', (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Не авторизован' });
   const { invId } = req.body;
-  // Сначала получаем предмет
   db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [invId, req.session.userId], (err, item) => {
     if (!item) return res.status(404).json({ error: 'Предмет не найден' });
-    // Снимаем все предметы в этом слоте
     db.all('SELECT id FROM inventory WHERE user_id = ? AND slot = ? AND equipped = 1', [req.session.userId, item.slot], (err, rows) => {
       let done = 0;
       if (rows.length === 0) return updateEquipped(invId, true, () => res.json({ success: true }));
@@ -229,10 +231,8 @@ app.post('/api/battle/create', (req, res) => {
   getUserByNick(opponentNick, (err, opponent) => {
     if (!opponent) return res.status(404).json({ error: 'Противник не найден' });
     if (opponent.id === req.session.userId) return res.status(400).json({ error: 'Нельзя с собой' });
-    // Проверяем, есть ли уже активный бой
     db.get('SELECT * FROM battles WHERE status = "active" AND (player1_id = ? OR player2_id = ?)', [req.session.userId, req.session.userId], (err, battle) => {
       if (battle) return res.status(400).json({ error: 'У вас уже есть активный бой' });
-      // Получаем HP
       getUserById(req.session.userId, (err, p1) => {
         getUserById(opponent.id, (err, p2) => {
           db.run(`INSERT INTO battles (player1_id, player2_id, status, turn, hp1, hp2) VALUES (?, ?, 'active', ?, ?, ?)`,
@@ -252,39 +252,27 @@ app.post('/api/battle/action', (req, res) => {
   db.get('SELECT * FROM battles WHERE id = ?', [battleId], (err, battle) => {
     if (!battle || battle.status !== 'active') return res.status(404).json({ error: 'Бой не найден или завершён' });
     if (battle.turn !== req.session.userId) return res.status(400).json({ error: 'Не ваш ход' });
-    // Определяем противника
     const opponentId = battle.player1_id === req.session.userId ? battle.player2_id : battle.player1_id;
-    // Вычисляем урон
     let attackerDamage = 5;
-    let targetArmor = 0;
-    // Берём экипировку атакующего
     getEquipped(req.session.userId, (err, attItems) => {
       attItems.forEach(it => {
         if (it.slot.startsWith('weapon')) attackerDamage += it.damage * (1 + it.upgrade_level);
-        // Броня с тела
-        if (['head','neck','body','legs','arms','gloves','boots'].includes(it.slot)) targetArmor += it.armor * (1 + it.upgrade_level); // на самом деле броня цели, но для простоты используем у атакующего? Но нам нужна броня цели – переделаем
       });
-      // Броня цели
       getEquipped(opponentId, (err, defItems) => {
         let armor = 0;
         defItems.forEach(it => {
           if (['head','neck','body','legs','arms','gloves','boots'].includes(it.slot)) armor += it.armor * (1 + it.upgrade_level);
         });
         const damage = Math.max(1, attackerDamage - armor / 2 + Math.floor(Math.random() * 10));
-        // Обновляем HP цели
         let hpKey = battle.player1_id === opponentId ? 'hp1' : 'hp2';
         let newHp = battle[hpKey] - damage;
         if (newHp < 0) newHp = 0;
-        // Обновляем БД
         db.run(`UPDATE battles SET ${hpKey} = ?, turn = ? WHERE id = ?`, [newHp, opponentId, battleId], (err) => {
           if (newHp === 0) {
-            // Победитель – атакующий
-            // Передаём экипировку
             getEquipped(opponentId, (err, items) => {
               let done = 0;
               if (items.length === 0) finishBattle();
               items.forEach(it => {
-                // Добавляем победителю
                 addItem(req.session.userId, { name: it.name, slot: it.slot, armor: it.armor, damage: it.damage, rarity: it.rarity, upgrade_level: it.upgrade_level }, () => {
                   deleteItem(it.id, () => {
                     done++;
@@ -293,7 +281,6 @@ app.post('/api/battle/action', (req, res) => {
                 });
               });
               function finishBattle() {
-                // Награда: 10 монет, опыт
                 getUserById(req.session.userId, (err, winner) => {
                   getUserById(opponentId, (err, loser) => {
                     winner.coins += 10;
@@ -305,7 +292,6 @@ app.post('/api/battle/action', (req, res) => {
                       winner.current_hp = winner.max_hp;
                     }
                     updateUser(winner, () => {
-                      // Обновляем статус боя
                       db.run('UPDATE battles SET status = "finished" WHERE id = ?', [battleId], () => {
                         res.json({ winner: winner.nickname, reward: '10 монет, опыт' });
                       });
@@ -350,15 +336,15 @@ app.post('/api/logout', (req, res) => {
 setInterval(() => {
   db.all('SELECT id FROM users ORDER BY level DESC, exp DESC LIMIT 10', (err, rows) => {
     rows.forEach(row => {
-      const item = generateItem('weapon1'); // любой слот
+      const item = generateItem('weapon1');
       addItem(row.id, item, () => {
         console.log('Награда выдана игроку', row.id);
       });
     });
   });
-}, 3600000); // каждый час
+}, 3600000);
 
 // ===== ЗАПУСК =====
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Сервер запущен на http://${HOST}:${PORT}`);
 });
