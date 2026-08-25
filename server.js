@@ -7,6 +7,15 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 
+console.log('PORT из окружения:', process.env.PORT);
+console.log('Реальный порт для listen:', PORT);
+
+// ===== ЛОГИРОВАНИЕ ВСЕХ ЗАПРОСОВ =====
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // ===== ОБРАБОТЧИКИ НЕОБРАБОТАННЫХ ОШИБОК =====
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
@@ -167,12 +176,24 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===== API =====
-// ... (все остальные маршруты API без изменений, как в предыдущей версии) ...
-// Я сокращу для ясности, но вы можете скопировать их из предыдущего кода.
+// ===== API (все маршруты, которые были ранее) =====
+// ... здесь должны быть все ваши /api/... маршруты (регистрация, логин, инвентарь, бой и т.д.)
+// Я сократил для краткости, но вы должны скопировать их из предыдущего кода.
+// Вставьте сюда все ваши существующие маршруты API без изменений.
+
+// ===== ЧАСОВАЯ НАГРАДА ТОПАМ =====
+setInterval(() => {
+  db.all('SELECT id FROM users ORDER BY level DESC, exp DESC LIMIT 10', (err, rows) => {
+    rows.forEach(row => {
+      const item = generateItem('weapon1');
+      addItem(row.id, item, () => {
+        console.log('Награда выдана игроку', row.id);
+      });
+    });
+  });
+}, 3600000);
 
 // ===== ЗАПУСК =====
 app.listen(PORT, HOST, () => {
   console.log(`Сервер запущен на http://${HOST}:${PORT}`);
-  console.log(`Порт из окружения: ${process.env.PORT || 'не задан'}`);
 });
