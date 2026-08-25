@@ -1,0 +1,5 @@
+target/
+*.log
+database.db
+*.iml
+.DS_Store

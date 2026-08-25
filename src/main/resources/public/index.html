@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Upgrader Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="login">
+            <h2>Вход / Регистрация</h2>
+            <input id="nick" placeholder="Ник"><br>
+            <input id="pass" type="password" placeholder="Пароль"><br>
+            <button onclick="login()">Войти</button>
+            <button onclick="register()">Регистрация</button>
+        </div>
+        <div id="game" style="display:none;">
+            <div id="tabs">
+                <button onclick="showTab('profile')">Профиль</button>
+                <button onclick="showTab('inventory')">Инвентарь</button>
+                <button onclick="showTab('upgrade')">Апгрейд</button>
+                <button onclick="showTab('battle')">Бой</button>
+                <button onclick="showTab('top')">Топ</button>
+                <button onclick="logout()">Выйти</button>
+            </div>
+            <div id="profile" class="tab-content">
+                <h3>Профиль</h3>
+                <div id="profileInfo"></div>
+            </div>
+            <div id="inventory" class="tab-content" style="display:none;">
+                <h3>Инвентарь</h3>
+                <div id="inventoryList"></div>
+            </div>
+            <div id="upgrade" class="tab-content" style="display:none;">
+                <h3>Апгрейд</h3>
+                <div id="upgradeList"></div>
+            </div>
+            <div id="battle" class="tab-content" style="display:none;">
+                <h3>Бой</h3>
+                <div id="battleStatus"></div>
+                <div id="battleActions"></div>
+            </div>
+            <div id="top" class="tab-content" style="display:none;">
+                <h3>Топ игроков</h3>
+                <div id="topList"></div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
