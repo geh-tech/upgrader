@@ -1,0 +1,5 @@
+{
+  "deploy": {
+    "startCommand": "java -jar target/upgrader-game-1.0-SNAPSHOT.jar"
+  }
+}
