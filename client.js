@@ -3,6 +3,7 @@ let currentUser = null;
 let currentItems = [];
 let selectedItemId = null;
 let isSpinning = false;
+let animationFrame = null;
 
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');
@@ -21,7 +22,7 @@ function calculateHiddenChance(chance, price) {
   return Math.max(1, chance - penalty);
 }
 
-// ===== РИСОВАНИЕ =====
+// ===== РИСОВАНИЕ (с чёткими границами) =====
 function drawWheel(realChance) {
   const w = canvas.width, h = canvas.height;
   const cx = w/2, cy = h/2;
@@ -29,37 +30,37 @@ function drawWheel(realChance) {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Фон
+  // Рисуем фон (серый)
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = '#2a2a2a';
   ctx.fill();
-  ctx.strokeStyle = '#555';
+  ctx.strokeStyle = '#444';
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Сектор шанса (жёлтый)
   if (realChance > 0) {
     const startAngle = -Math.PI/2;
     const endAngle = startAngle + (realChance/100) * 2*Math.PI;
-    // Сектор
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.7)';
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
     ctx.fill();
     ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Границы сектора (линии от центра)
+    // Жирные границы сектора
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     const x1 = cx + Math.cos(startAngle) * radius;
     const y1 = cy + Math.sin(startAngle) * radius;
     ctx.lineTo(x1, y1);
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffaa00';
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     ctx.beginPath();
@@ -69,30 +70,44 @@ function drawWheel(realChance) {
     ctx.lineTo(x2, y2);
     ctx.stroke();
 
-    // Текст "WIN" внутри сектора (по середине)
+    // Текст "WIN" внутри сектора
     const midAngle = startAngle + (endAngle - startAngle) / 2;
     const textRadius = radius * 0.6;
     const tx = cx + Math.cos(midAngle) * textRadius;
     const ty = cy + Math.sin(midAngle) * textRadius;
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 20px Arial';
+    ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('WIN', tx, ty);
   }
 
+  // Текст "LOSE" на серой части
+  const loseStart = -Math.PI/2 + (realChance/100) * 2*Math.PI;
+  const loseEnd = -Math.PI/2 + 2*Math.PI;
+  if (loseEnd - loseStart > 0.1) {
+    const midLose = loseStart + (loseEnd - loseStart) / 2;
+    const lx = cx + Math.cos(midLose) * radius * 0.6;
+    const ly = cy + Math.sin(midLose) * radius * 0.6;
+    ctx.fillStyle = '#666';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LOSE', lx, ly);
+  }
+
   // Центр
   ctx.beginPath();
-  ctx.arc(cx, cy, 6, 0, Math.PI*2);
+  ctx.arc(cx, cy, 8, 0, Math.PI*2);
   ctx.fillStyle = '#ffd700';
   ctx.fill();
 
-  // Отображение реального шанса
+  // Информация
   ctx.fillStyle = '#aaa';
-  ctx.font = '12px monospace';
+  ctx.font = '14px monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(`Шанс: ${realChance.toFixed(1)}%`, 10, 10);
+  ctx.fillText(`Реальный шанс: ${realChance.toFixed(1)}%`, 10, 10);
 }
 
 function drawArrow(angle) {
@@ -106,21 +121,22 @@ function drawArrow(angle) {
   const tipX = cx + Math.sin(angle) * arrowLen;
   const tipY = cy - Math.cos(angle) * arrowLen;
 
-  // Линия стрелки
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(tipX, tipY);
-  ctx.strokeStyle = '#ff4444';
+  ctx.strokeStyle = '#ff3333';
   ctx.lineWidth = 4;
+  ctx.shadowColor = '#ff3333';
+  ctx.shadowBlur = 10;
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  // Круглая головка
   ctx.beginPath();
   ctx.arc(cx, cy, 8, 0, Math.PI*2);
-  ctx.fillStyle = '#ff4444';
+  ctx.fillStyle = '#ff3333';
   ctx.fill();
 
-  // Надпись угла
+  // Угол
   let deg = ((angle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
   deg = deg * 180 / Math.PI;
   ctx.fillStyle = '#fff';
@@ -143,8 +159,11 @@ function updateChanceDisplay() {
   hiddenChanceDisplay.textContent = real.toFixed(1);
   window._lastRealChance = real;
 
-  drawWheel(real);
-  drawArrow(0);
+  // Перерисовываем только если не идёт анимация
+  if (!isSpinning) {
+    drawWheel(real);
+    drawArrow(0);
+  }
 }
 
 chanceSlider.addEventListener('input', updateChanceDisplay);
@@ -259,6 +278,7 @@ function spinWheel(targetAngle, callback) {
   const extraRotations = 5 + Math.random() * 3;
   const totalAngle = targetAngle + extraRotations * Math.PI * 2;
   const realChance = window._lastRealChance || 50;
+  isSpinning = true;
 
   function animate(time) {
     const elapsed = time - startTime;
@@ -268,7 +288,7 @@ function spinWheel(targetAngle, callback) {
     drawWheel(realChance);
     drawArrow(angle);
     if (progress < 1) {
-      requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
     } else {
       let finalAngle = angle % (2 * Math.PI);
       if (finalAngle < 0) finalAngle += 2 * Math.PI;
@@ -286,10 +306,11 @@ function spinWheel(targetAngle, callback) {
       console.log(`🔍 Сектор (норм): [${(startNorm*180/Math.PI).toFixed(1)}°, ${(endNorm*180/Math.PI).toFixed(1)}°]`);
       console.log(`🔍 Угол стрелки: ${(finalAngle*180/Math.PI).toFixed(1)}°`);
       console.log(`🔍 Попадание: ${hit}`);
+      isSpinning = false;
       callback(hit);
     }
   }
-  requestAnimationFrame(animate);
+  animationFrame = requestAnimationFrame(animate);
 }
 
 // ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА =====
@@ -304,7 +325,6 @@ async function confirmUpgrade() {
 
   const btn = document.getElementById('upgradeBtn');
   btn.disabled = true;
-  isSpinning = true;
   document.getElementById('modalResult').textContent = '🎲 Крутим...';
 
   const targetAngle = Math.random() * Math.PI * 2;
@@ -359,11 +379,12 @@ async function confirmUpgrade() {
       }
     }
     btn.disabled = false;
-    isSpinning = false;
   });
 }
 
-// ===== ИСТОРИЯ =====
+// ===== ИСТОРИЯ (оптимизированная) =====
+let historyInterval = null;
+
 async function loadHistory() {
   try {
     const res = await fetch('/history');
@@ -388,7 +409,7 @@ async function loadHistory() {
     });
     list.innerHTML = html;
   } catch (e) {
-    document.getElementById('historyList').innerHTML = '<span class="history-placeholder">Ошибка загрузки</span>';
+    // Не показываем ошибку в ленте, просто оставляем старую
   }
 }
 
@@ -434,7 +455,8 @@ async function login() {
       showMessage('Добро пожаловать!', 'success');
       loadInventory();
       loadHistory();
-      setInterval(loadHistory, 5000);
+      if (historyInterval) clearInterval(historyInterval);
+      historyInterval = setInterval(loadHistory, 10000); // обновление раз в 10 секунд
     } else {
       showMessage(data.error || 'Ошибка', 'error');
     }
@@ -445,6 +467,7 @@ async function login() {
 
 async function logout() {
   await fetch('/logout');
+  if (historyInterval) clearInterval(historyInterval);
   currentUser = null;
   document.getElementById('authSection').style.display = 'flex';
   document.getElementById('userInfo').style.display = 'none';
@@ -481,7 +504,8 @@ async function fetchUser() {
         document.getElementById('addItemSection').style.display = 'flex';
         loadInventory();
         loadHistory();
-        setInterval(loadHistory, 5000);
+        if (historyInterval) clearInterval(historyInterval);
+        historyInterval = setInterval(loadHistory, 10000);
       }
     }
   } catch (e) {}
