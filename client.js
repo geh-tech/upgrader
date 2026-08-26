@@ -13,12 +13,12 @@ const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
 
 // ===== НОВАЯ ФОРМУЛА КОЭФФИЦИЕНТА =====
 function calculateCoefficient(chance) {
-  return 100 / chance; // при chance=1% → 100, при 99% → ~1.01
+  return 100 / chance;
 }
 
 // ===== СКРЫТЫЙ ШАНС (штраф от цены) =====
 function calculateHiddenChance(chance, price) {
-  const penalty = Math.min(10, price / 1000); // макс. штраф 10%
+  const penalty = Math.min(10, price / 1000);
   return Math.max(1, chance - penalty);
 }
 
@@ -77,7 +77,7 @@ function drawArrow(angle) {
   ctx.fill();
 }
 
-// ===== ОБНОВЛЕНИЕ =====
+// ===== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ =====
 function updateChanceDisplay() {
   const declared = parseInt(chanceSlider.value);
   chanceDisplay.textContent = declared;
@@ -96,7 +96,7 @@ function updateChanceDisplay() {
 
 chanceSlider.addEventListener('input', updateChanceDisplay);
 
-// ===== ИНВЕНТАРЬ (без изменений) =====
+// ===== ИНВЕНТАРЬ =====
 async function loadInventory() {
   try {
     const res = await fetch('/inventory');
@@ -198,7 +198,7 @@ function closeModal() {
   selectedItemId = null;
 }
 
-// ===== ВРАЩЕНИЕ (без изменений, работает) =====
+// ===== ВРАЩЕНИЕ (ИСПРАВЛЕННАЯ ВЕРСИЯ) =====
 function spinWheel(targetAngle, callback) {
   const duration = 3000;
   const startTime = performance.now();
@@ -206,6 +206,11 @@ function spinWheel(targetAngle, callback) {
   const extraRotations = 5 + Math.random() * 3;
   const totalAngle = targetAngle + extraRotations * Math.PI * 2;
   const realChance = window._lastRealChance || 50;
+
+  // Сектор в радианах
+  const sectorStart = -Math.PI / 2; // 12 часов
+  const sectorSize = (realChance / 100) * 2 * Math.PI;
+  const sectorEnd = sectorStart + sectorSize;
 
   function animate(time) {
     const elapsed = time - startTime;
@@ -217,26 +222,35 @@ function spinWheel(targetAngle, callback) {
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
+      // Финальный угол (без оборотов) в [0, 2PI)
       let finalAngle = angle % (2 * Math.PI);
       if (finalAngle < 0) finalAngle += 2 * Math.PI;
-      const sectorStart = -Math.PI / 2;
-      const sectorEnd = sectorStart + (realChance / 100) * 2 * Math.PI;
+
+      // Нормализуем сектор в [0, 2PI)
       let startNorm = ((sectorStart % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       let endNorm = ((sectorEnd % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+      // Проверяем попадание
       let hit = false;
       if (startNorm < endNorm) {
         if (finalAngle >= startNorm && finalAngle <= endNorm) hit = true;
       } else {
         if (finalAngle >= startNorm || finalAngle <= endNorm) hit = true;
       }
-      console.log(`🎯 Угол: ${(finalAngle * 180 / Math.PI).toFixed(1)}°, сектор: ${(startNorm * 180 / Math.PI).toFixed(1)}° - ${(endNorm * 180 / Math.PI).toFixed(1)}°, попал: ${hit}`);
+
+      // Отладка
+      console.log(`🔍 Реальный шанс: ${realChance}%`);
+      console.log(`🔍 Сектор (норм): [${(startNorm * 180 / Math.PI).toFixed(2)}°, ${(endNorm * 180 / Math.PI).toFixed(2)}°]`);
+      console.log(`🔍 Угол стрелки: ${(finalAngle * 180 / Math.PI).toFixed(2)}°`);
+      console.log(`🔍 Попадание: ${hit}`);
+
       callback(hit);
     }
   }
   requestAnimationFrame(animate);
 }
 
-// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА (исправлено) =====
+// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА =====
 async function confirmUpgrade() {
   if (isSpinning) return;
   const item = currentItems.find(i => i.id === selectedItemId);
@@ -255,7 +269,7 @@ async function confirmUpgrade() {
 
   spinWheel(targetAngle, async (hit) => {
     if (hit) {
-      // ПОБЕДА: новый уровень и цена
+      // ПОБЕДА
       const newLevel = Math.ceil(item.level * coeff);
       const newPrice = Math.ceil(item.price * coeff);
       try {
@@ -309,7 +323,7 @@ async function confirmUpgrade() {
   });
 }
 
-// ===== ИСТОРИЯ (без изменений) =====
+// ===== ИСТОРИЯ =====
 async function loadHistory() {
   try {
     const res = await fetch('/history');
@@ -338,7 +352,7 @@ async function loadHistory() {
   }
 }
 
-// ===== АВТОРИЗАЦИЯ (без изменений) =====
+// ===== АВТОРИЗАЦИЯ =====
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
