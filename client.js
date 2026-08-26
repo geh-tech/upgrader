@@ -11,12 +11,11 @@ const chanceDisplay = document.getElementById('chanceDisplay');
 const coeffDisplay = document.getElementById('coefficientDisplay');
 const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
 
-// ===== НОВАЯ ФОРМУЛА КОЭФФИЦИЕНТА =====
+// ===== РАСЧЁТЫ =====
 function calculateCoefficient(chance) {
   return 100 / chance;
 }
 
-// ===== СКРЫТЫЙ ШАНС (штраф от цены) =====
 function calculateHiddenChance(chance, price) {
   const penalty = Math.min(10, price / 1000);
   return Math.max(1, chance - penalty);
@@ -29,55 +28,109 @@ function drawWheel(realChance) {
   const radius = Math.min(w,h)/2 - 10;
 
   ctx.clearRect(0, 0, w, h);
+
+  // Фон
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI*2);
   ctx.fillStyle = '#1a1a1a';
   ctx.fill();
-  ctx.strokeStyle = '#ffd700';
+  ctx.strokeStyle = '#555';
   ctx.lineWidth = 2;
   ctx.stroke();
 
   if (realChance > 0) {
     const startAngle = -Math.PI/2;
     const endAngle = startAngle + (realChance/100) * 2*Math.PI;
+    // Сектор
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255,215,0,0.6)';
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.7)';
     ctx.fill();
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Границы сектора (линии от центра)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    const x1 = cx + Math.cos(startAngle) * radius;
+    const y1 = cy + Math.sin(startAngle) * radius;
+    ctx.lineTo(x1, y1);
     ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    const x2 = cx + Math.cos(endAngle) * radius;
+    const y2 = cy + Math.sin(endAngle) * radius;
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Текст "WIN" внутри сектора (по середине)
+    const midAngle = startAngle + (endAngle - startAngle) / 2;
+    const textRadius = radius * 0.6;
+    const tx = cx + Math.cos(midAngle) * textRadius;
+    const ty = cy + Math.sin(midAngle) * textRadius;
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('WIN', tx, ty);
   }
 
+  // Центр
   ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI*2);
+  ctx.arc(cx, cy, 6, 0, Math.PI*2);
   ctx.fillStyle = '#ffd700';
   ctx.fill();
+
+  // Отображение реального шанса
+  ctx.fillStyle = '#aaa';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Шанс: ${realChance.toFixed(1)}%`, 10, 10);
 }
 
 function drawArrow(angle) {
   const w = canvas.width, h = canvas.height;
   const cx = w/2, cy = h/2;
   const radius = Math.min(w,h)/2 - 10;
-  drawWheel(window._lastRealChance || 50);
-  const arrowLen = radius * 0.8;
+  const realChance = window._lastRealChance || 50;
+  drawWheel(realChance);
+
+  const arrowLen = radius * 0.85;
   const tipX = cx + Math.sin(angle) * arrowLen;
   const tipY = cy - Math.cos(angle) * arrowLen;
+
+  // Линия стрелки
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(tipX, tipY);
   ctx.strokeStyle = '#ff4444';
   ctx.lineWidth = 4;
   ctx.stroke();
+
+  // Круглая головка
   ctx.beginPath();
-  ctx.arc(cx, cy, 6, 0, Math.PI*2);
+  ctx.arc(cx, cy, 8, 0, Math.PI*2);
   ctx.fillStyle = '#ff4444';
   ctx.fill();
+
+  // Надпись угла
+  let deg = ((angle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  deg = deg * 180 / Math.PI;
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`∠ ${deg.toFixed(1)}°`, w-10, h-10);
 }
 
-// ===== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ =====
+// ===== ОБНОВЛЕНИЕ =====
 function updateChanceDisplay() {
   const declared = parseInt(chanceSlider.value);
   chanceDisplay.textContent = declared;
@@ -198,7 +251,7 @@ function closeModal() {
   selectedItemId = null;
 }
 
-// ===== ВРАЩЕНИЕ (ИСПРАВЛЕННАЯ ВЕРСИЯ) =====
+// ===== ВРАЩЕНИЕ =====
 function spinWheel(targetAngle, callback) {
   const duration = 3000;
   const startTime = performance.now();
@@ -206,11 +259,6 @@ function spinWheel(targetAngle, callback) {
   const extraRotations = 5 + Math.random() * 3;
   const totalAngle = targetAngle + extraRotations * Math.PI * 2;
   const realChance = window._lastRealChance || 50;
-
-  // Сектор в радианах
-  const sectorStart = -Math.PI / 2; // 12 часов
-  const sectorSize = (realChance / 100) * 2 * Math.PI;
-  const sectorEnd = sectorStart + sectorSize;
 
   function animate(time) {
     const elapsed = time - startTime;
@@ -222,28 +270,22 @@ function spinWheel(targetAngle, callback) {
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      // Финальный угол (без оборотов) в [0, 2PI)
       let finalAngle = angle % (2 * Math.PI);
       if (finalAngle < 0) finalAngle += 2 * Math.PI;
-
-      // Нормализуем сектор в [0, 2PI)
+      const sectorStart = -Math.PI / 2;
+      const sectorEnd = sectorStart + (realChance / 100) * 2 * Math.PI;
       let startNorm = ((sectorStart % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       let endNorm = ((sectorEnd % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-
-      // Проверяем попадание
       let hit = false;
       if (startNorm < endNorm) {
         if (finalAngle >= startNorm && finalAngle <= endNorm) hit = true;
       } else {
         if (finalAngle >= startNorm || finalAngle <= endNorm) hit = true;
       }
-
-      // Отладка
       console.log(`🔍 Реальный шанс: ${realChance}%`);
-      console.log(`🔍 Сектор (норм): [${(startNorm * 180 / Math.PI).toFixed(2)}°, ${(endNorm * 180 / Math.PI).toFixed(2)}°]`);
-      console.log(`🔍 Угол стрелки: ${(finalAngle * 180 / Math.PI).toFixed(2)}°`);
+      console.log(`🔍 Сектор (норм): [${(startNorm*180/Math.PI).toFixed(1)}°, ${(endNorm*180/Math.PI).toFixed(1)}°]`);
+      console.log(`🔍 Угол стрелки: ${(finalAngle*180/Math.PI).toFixed(1)}°`);
       console.log(`🔍 Попадание: ${hit}`);
-
       callback(hit);
     }
   }
@@ -269,7 +311,6 @@ async function confirmUpgrade() {
 
   spinWheel(targetAngle, async (hit) => {
     if (hit) {
-      // ПОБЕДА
       const newLevel = Math.ceil(item.level * coeff);
       const newPrice = Math.ceil(item.price * coeff);
       try {
@@ -295,7 +336,6 @@ async function confirmUpgrade() {
         document.getElementById('modalResult').textContent = '❌ Ошибка соединения';
       }
     } else {
-      // ПРОИГРЫШ
       try {
         await fetch('/record-lose', {
           method: 'POST',
