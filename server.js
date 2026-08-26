@@ -10,13 +10,13 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname))); // раздаём статику (index.html, styles.css, client.js)
+app.use(express.static(path.join(__dirname)));
 
 app.use(session({
   secret: 'casino_secret_key_2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 день
+  cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
 // База данных
@@ -38,7 +38,7 @@ db.serialize(() => {
   )`);
 });
 
-// ========== Вспомогательные функции ==========
+// Вспомогательные функции
 function getUser(req) {
   return new Promise((resolve, reject) => {
     if (!req.session.userId) return resolve(null);
@@ -58,16 +58,13 @@ function getInventory(userId) {
   });
 }
 
-// ========== API ==========
-
-// Получить текущего пользователя
+// API
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   res.json({ username: user.username });
 });
 
-// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -82,7 +79,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Вход
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
@@ -94,13 +90,11 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Выход
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
 });
 
-// Получить инвентарь
 app.get('/inventory', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -108,7 +102,6 @@ app.get('/inventory', async (req, res) => {
   res.json(items);
 });
 
-// Добавить предмет
 app.post('/add-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -122,7 +115,6 @@ app.post('/add-item', async (req, res) => {
   });
 });
 
-// Удалить предмет
 app.post('/delete-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -133,7 +125,6 @@ app.post('/delete-item', async (req, res) => {
   });
 });
 
-// Апгрейд
 app.post('/upgrade', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -180,7 +171,7 @@ app.post('/upgrade', async (req, res) => {
   }
 });
 
-// Запуск
-app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
+// ====== ГЛАВНОЕ ИСПРАВЛЕНИЕ: слушаем 0.0.0.0 ======
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Сервер запущен на http://0.0.0.0:${PORT}`);
 });
