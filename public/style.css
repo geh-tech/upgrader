@@ -1,7 +1,0 @@
-body { font-family: Arial, sans-serif; margin: 20px; }
-#tabs button { margin: 5px; padding: 10px 15px; background: #eee; border: 1px solid #ccc; cursor: pointer; }
-#tabs button:hover { background: #ddd; }
-.tab-content { margin-top: 20px; }
-.item { border: 1px solid #ccc; padding: 8px; margin: 5px 0; background: #f9f9f9; }
-.item button { margin-left: 10px; }
-#profileInfo p { margin: 5px 0; }

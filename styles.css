@@ -1,0 +1,326 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0b0b0b;
+  color: #f0e6d0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.container {
+  max-width: 700px;
+  width: 100%;
+  background: #1a1a1a;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
+  border: 1px solid #2a2a2a;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+  color: #ffd700;
+  text-shadow: 0 0 20px #ffd70055;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #aaa;
+  margin-bottom: 25px;
+  font-size: 0.95rem;
+}
+
+/* Авторизация */
+.auth-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.auth-section input {
+  padding: 10px 14px;
+  border-radius: 30px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  min-width: 140px;
+  flex: 1;
+}
+
+.auth-section button {
+  padding: 10px 25px;
+  border: none;
+  border-radius: 30px;
+  background: #ffd700;
+  color: #111;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  flex: 1;
+}
+
+.auth-section button:hover {
+  background: #ffed4a;
+  transform: scale(1.02);
+}
+
+.logout-btn {
+  padding: 4px 16px;
+  border: none;
+  border-radius: 20px;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  margin-left: 15px;
+}
+.logout-btn:hover {
+  background: #555;
+}
+
+.user-info {
+  text-align: center;
+  margin: 15px 0;
+  font-size: 1.1rem;
+  color: #ccc;
+}
+.user-info span {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Добавление предмета */
+.add-item {
+  display: flex;
+  gap: 12px;
+  margin: 25px 0;
+  flex-wrap: wrap;
+  background: #222;
+  padding: 15px;
+  border-radius: 16px;
+}
+
+.add-item input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 30px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  min-width: 120px;
+}
+
+.add-item button {
+  padding: 10px 25px;
+  border: none;
+  border-radius: 30px;
+  background: #2a7a2a;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.add-item button:hover {
+  background: #3a9a3a;
+}
+
+/* Инвентарь */
+.inventory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+  max-height: 350px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.inventory::-webkit-scrollbar {
+  width: 6px;
+}
+.inventory::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+.inventory::-webkit-scrollbar-thumb {
+  background: #ffd700;
+  border-radius: 10px;
+}
+
+.item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #252525;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border-left: 5px solid #ffd700;
+  transition: 0.2s;
+  cursor: default;
+}
+.item-card:hover {
+  background: #2e2e2e;
+}
+.item-card .name {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+.item-card .level {
+  background: #333;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: #ffd700;
+}
+.item-card .actions {
+  display: flex;
+  gap: 8px;
+}
+.item-card .actions button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 20px;
+  background: #b8860b;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.item-card .actions button:hover {
+  background: #d4a017;
+  transform: scale(1.05);
+}
+.item-card .actions .delete-btn {
+  background: #6b1a1a;
+}
+.item-card .actions .delete-btn:hover {
+  background: #8a2222;
+}
+
+.empty-msg {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+}
+
+.error-msg {
+  color: #ff6b6b;
+  text-align: center;
+  margin: 10px 0;
+}
+.success-msg {
+  color: #69db7c;
+  text-align: center;
+  margin: 10px 0;
+}
+
+/* Модальное окно */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: #1a1a1a;
+  padding: 35px 30px;
+  border-radius: 30px;
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid #ffd700;
+  text-align: center;
+}
+.modal-content h2 {
+  color: #ffd700;
+  margin-bottom: 20px;
+}
+.modal-content .chance-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.modal-content .chance-buttons button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 40px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  background: #333;
+  color: #fff;
+  transition: 0.2s;
+  flex: 1;
+  min-width: 80px;
+}
+.modal-content .chance-buttons button:hover {
+  background: #555;
+  transform: scale(1.05);
+}
+.modal-content .chance-buttons button.selected {
+  background: #ffd700;
+  color: #111;
+}
+.modal-content .result {
+  margin: 20px 0;
+  font-size: 1.3rem;
+  min-height: 40px;
+}
+.modal-content .close-btn {
+  padding: 10px 30px;
+  border: none;
+  border-radius: 30px;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 10px;
+}
+.modal-content .close-btn:hover {
+  background: #666;
+}
+.upgrade-btn {
+  padding: 12px 40px;
+  border: none;
+  border-radius: 40px;
+  background: #ffd700;
+  color: #111;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin: 10px 0;
+}
+.upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Адаптив */
+@media (max-width: 500px) {
+  .container {
+    padding: 20px;
+  }
+  .auth-section input {
+    min-width: 100px;
+  }
+}
