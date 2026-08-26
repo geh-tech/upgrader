@@ -7,19 +7,23 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+<!-- ===== ЛЕНТА ОНЛАЙН-АПГРЕЙДОВ ===== -->
+<div id="historyBar">
+  <div class="history-container">
+    <span class="history-label">🔥 Онлайн апгрейды:</span>
+    <div id="historyList" class="history-list">
+      <span class="history-placeholder">Загрузка...</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ОСНОВНОЙ КОНТЕЙНЕР ===== -->
 <div class="container">
   <h1>🎰 Апгрейдер CS:GO</h1>
-  <div class="subtitle">Ставь скин – рискуй – улучшай или теряй</div>
+  <div class="subtitle">Поставь скин – рискуй – улучшай или теряй</div>
 
-  <!-- Лента онлайн-апгрейдов -->
-  <div id="upgradeFeed" class="upgrade-feed">
-    <h3>⚡ Последние апгрейды</h3>
-    <ul id="feedList">
-      <li>Загрузка...</li>
-    </ul>
-  </div>
-
-  <!-- Блок авторизации -->
+  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -29,18 +33,20 @@
 
   <!-- Информация о пользователе -->
   <div id="userInfo" class="user-info" style="display:none;">
-    Привет, <span id="usernameDisplay"></span> | Баланс: <span id="balanceDisplay">0</span> 🪙
+    Привет, <span id="usernameDisplay"></span>
     <button class="logout-btn" onclick="logout()">Выйти</button>
   </div>
 
-  <!-- Генерация случайного предмета -->
+  <!-- Добавление предмета (для теста) -->
   <div id="addItemSection" style="display:none;">
     <div class="add-item">
-      <button onclick="generateAndAddItem()">🎲 Получить случайный предмет</button>
+      <input type="text" id="itemName" placeholder="Название предмета" />
+      <input type="number" id="itemPrice" placeholder="Цена" value="100" />
+      <button onclick="addItem()">➕ Добавить</button>
     </div>
   </div>
 
-  <!-- Инвентарь в виде сетки -->
+  <!-- ИНВЕНТАРЬ (СЕТКА) -->
   <div id="inventoryContainer">
     <div class="empty-msg">Загружаем инвентарь...</div>
   </div>
@@ -48,25 +54,27 @@
   <div id="message" class="error-msg"></div>
 </div>
 
-<!-- Модальное окно апгрейда -->
+<!-- ===== МОДАЛЬНОЕ ОКНО АПГРЕЙДА ===== -->
 <div id="upgradeModal" class="modal">
   <div class="modal-content">
     <h2>⚡ Апгрейд</h2>
-    <p id="modalItemName" style="font-size:1.2rem;"></p>
-    <p style="color:#aaa;">Уровень: <span id="modalCurrentLevel"></span> | Цена: <span id="modalItemPrice"></span> 🪙</p>
+    <p id="modalItemName" style="font-size:1.2rem; margin-bottom:5px;"></p>
+    <p style="color:#aaa;">Текущий уровень: <span id="modalCurrentLevel"></span></p>
+    <p style="color:#aaa;">Цена: <span id="modalPrice"></span></p>
 
+    <!-- Canvas для круга -->
     <canvas id="wheelCanvas" width="250" height="250"></canvas>
 
+    <!-- Ползунок шанса -->
     <div style="margin: 15px 0;">
       <label for="chanceSlider">Шанс: <span id="chanceDisplay">50</span>%</label>
       <input type="range" id="chanceSlider" min="1" max="99" value="50" step="1" style="width:100%;" />
     </div>
 
+    <!-- Отображение коэффициента и скрытого шанса -->
     <div style="font-size:0.95rem; color:#aaa;">
-      Коэффициент: <span id="coefficientDisplay">1.95</span>x
-    </div>
-    <div style="font-size:0.9rem; color:#888; margin-top:5px;">
-      (Скрытый шанс с учётом цены: <span id="hiddenChanceDisplay">50</span>%)
+      Коэффициент: <span id="coefficientDisplay">1.95</span>x<br />
+      Скрытый шанс: <span id="hiddenChanceDisplay">50.0</span>%
     </div>
 
     <div id="modalResult" class="result"></div>

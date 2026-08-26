@@ -1,37 +1,30 @@
-// ===== Глобальные переменные =====
+// ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
 let currentUser = null;
 let currentItems = [];
 let selectedItemId = null;
 let isSpinning = false;
-let balance = 0;
 
-// Элементы DOM
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');
 const chanceSlider = document.getElementById('chanceSlider');
 const chanceDisplay = document.getElementById('chanceDisplay');
 const coeffDisplay = document.getElementById('coefficientDisplay');
 const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
-const feedList = document.getElementById('feedList');
 
-// Константы
 const LUCK = -0.05;
 
-// ===== Функции расчёта =====
+// ===== ФУНКЦИИ РАСЧЁТА =====
 function calculateCoefficient(chance) {
   return 2 - (chance - 50) * 0.03 + LUCK;
 }
 
-// Скрытый шанс: чем выше цена предмета, тем ниже реальный шанс (но не менее 1%)
-function calculateHiddenChance(baseChance, itemPrice) {
-  // Цена влияет: чем выше цена, тем больше штраф.
-  // Формула: realChance = baseChance - (price / 1000) * 2, но не менее 1
-  let reduction = (itemPrice / 1000) * 2; // например, цена 1000 -> снижение на 2%
-  let realChance = Math.max(1, baseChance - reduction);
-  return Math.min(realChance, 99); // не более 99
+function calculateHiddenChance(chance, price) {
+  // Чем выше цена, тем больше штраф (макс. штраф 10% при цене > 10000)
+  const penalty = Math.min(10, price / 1000); // 0..10
+  return Math.max(1, chance - penalty);
 }
 
-// ===== Отрисовка круга и стрелки =====
+// ===== РИСОВАНИЕ КРУГА =====
 function drawWheel(chance) {
   const w = canvas.width;
   const h = canvas.height;
@@ -50,7 +43,7 @@ function drawWheel(chance) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Закрашенный сектор (шанс)
+  // Сектор шанса (от 12 часов по часовой стрелке)
   if (chance > 0) {
     const startAngle = -Math.PI / 2;
     const endAngle = startAngle + (chance / 100) * Math.PI * 2;
@@ -65,21 +58,11 @@ function drawWheel(chance) {
     ctx.stroke();
   }
 
-  // Рисуем деления (опционально)
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    const len = i % 3 === 0 ? radius * 0.9 : radius * 0.95;
-    const x1 = cx + Math.cos(angle) * radius * 0.85;
-    const y1 = cy + Math.sin(angle) * radius * 0.85;
-    const x2 = cx + Math.cos(angle) * radius;
-    const y2 = cy + Math.sin(angle) * radius;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
+  // Центральная точка
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffd700';
+  ctx.fill();
 }
 
 function drawArrow(angle) {
@@ -89,7 +72,7 @@ function drawArrow(angle) {
   const cy = h / 2;
   const radius = Math.min(w, h) / 2 - 10;
 
-  // Перерисовываем круг без стрелки (чтобы не перекрывать)
+  // Перерисовываем круг с текущим шансом
   const chance = parseInt(chanceSlider.value);
   drawWheel(chance);
 
@@ -105,27 +88,24 @@ function drawArrow(angle) {
   ctx.lineWidth = 4;
   ctx.stroke();
 
-  // Центр
   ctx.beginPath();
   ctx.arc(cx, cy, 6, 0, Math.PI * 2);
   ctx.fillStyle = '#ff4444';
   ctx.fill();
 }
 
-// ===== Обновление дисплея =====
+// ===== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ =====
 function updateChanceDisplay() {
   const chance = parseInt(chanceSlider.value);
   chanceDisplay.textContent = chance;
   const coeff = calculateCoefficient(chance);
   coeffDisplay.textContent = coeff.toFixed(3);
 
-  // Получаем выбранный предмет для расчёта скрытого шанса
+  // Получаем цену выбранного предмета
   const item = currentItems.find(i => i.id === selectedItemId);
-  let hiddenChance = chance;
-  if (item) {
-    hiddenChance = calculateHiddenChance(chance, item.price);
-  }
-  hiddenChanceDisplay.textContent = Math.round(hiddenChance);
+  const price = item ? item.price : 100;
+  const hidden = calculateHiddenChance(chance, price);
+  hiddenChanceDisplay.textContent = hidden.toFixed(1);
 
   drawWheel(chance);
   drawArrow(0);
@@ -133,42 +113,7 @@ function updateChanceDisplay() {
 
 chanceSlider.addEventListener('input', updateChanceDisplay);
 
-// ===== Инвентарь (сетка) =====
-function renderInventory(items) {
-  const container = document.getElementById('inventoryContainer');
-  if (!items || items.length === 0) {
-    container.innerHTML = '<div class="empty-msg">У вас пока нет предметов. Получите случайный!</div>';
-    return;
-  }
-  let html = '<div class="inventory-grid">';
-  items.forEach(item => {
-    const rarityColor = {
-      'Обычный': '#aaa',
-      'Необычный': '#5b9aff',
-      'Редкий': '#b45eff',
-      'Эпический': '#ff5e5e',
-      'Легендарный': '#ffa500',
-      'Мифический': '#ff69b4',
-      'Вселенский': '#00ffff'
-    }[item.rarity] || '#fff';
-    html += `
-      <div class="item-card" data-id="${item.id}">
-        <div class="rarity" style="color:${rarityColor};">${item.rarity}</div>
-        <div class="name">${escapeHtml(item.name)}</div>
-        <div class="level">Уровень ${item.level}</div>
-        <div class="price">${item.price} 🪙</div>
-        <div class="actions">
-          <button class="upgrade-btn-card" onclick="openUpgrade(${item.id})">⚡ Апгрейд</button>
-          <button class="delete-btn" onclick="deleteItem(${item.id})">✖</button>
-        </div>
-      </div>
-    `;
-  });
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-// ===== Загрузка инвентаря =====
+// ===== ИНВЕНТАРЬ (СЕТКА) =====
 async function loadInventory() {
   try {
     const res = await fetch('/inventory');
@@ -181,31 +126,59 @@ async function loadInventory() {
   }
 }
 
-// ===== Получение случайного предмета =====
-async function generateAndAddItem() {
+function renderInventory(items) {
+  const container = document.getElementById('inventoryContainer');
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="empty-msg">У вас пока нет предметов. Добавьте свой первый!</div>';
+    return;
+  }
+  let html = '<div class="inventory-grid">';
+  items.forEach(item => {
+    html += `
+      <div class="item-card" data-id="${item.id}">
+        <div class="name">${escapeHtml(item.name)}</div>
+        <div class="level">Уровень ${item.level}</div>
+        <div class="price">💰 ${item.price}</div>
+        <div class="rarity">Редкость: ${item.rarity}/1000</div>
+        <div class="actions">
+          <button onclick="openUpgrade(${item.id})">⚡ Апгрейд</button>
+          <button class="delete-btn" onclick="deleteItem(${item.id})">✖</button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ===== ДОБАВЛЕНИЕ ПРЕДМЕТА (для теста) =====
+async function addItem() {
+  const name = document.getElementById('itemName').value.trim();
+  const price = parseInt(document.getElementById('itemPrice').value) || 100;
+  if (!name) {
+    showMessage('Введите название', 'error');
+    return;
+  }
   try {
-    const res = await fetch('/generate-item');
-    if (!res.ok) throw new Error('Ошибка генерации');
-    const data = await res.json();
-    // Добавляем в инвентарь
-    const addRes = await fetch('/add-item', {
+    const res = await fetch('/add-item', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ name, price, rarity: 500 })
     });
-    if (addRes.ok) {
-      showMessage('Получен новый предмет: ' + data.name, 'success');
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('itemName').value = '';
+      showMessage('Предмет добавлен!', 'success');
       loadInventory();
-      updateBalance();
     } else {
-      showMessage('Ошибка добавления предмета', 'error');
+      showMessage(data.error || 'Ошибка', 'error');
     }
   } catch (e) {
     showMessage('Ошибка соединения', 'error');
   }
 }
 
-// ===== Удаление предмета =====
+// ===== УДАЛЕНИЕ =====
 async function deleteItem(id) {
   if (!confirm('Удалить предмет?')) return;
   try {
@@ -216,7 +189,6 @@ async function deleteItem(id) {
     });
     if (res.ok) {
       loadInventory();
-      showMessage('Предмет удалён', 'success');
     } else {
       showMessage('Ошибка удаления', 'error');
     }
@@ -225,7 +197,7 @@ async function deleteItem(id) {
   }
 }
 
-// ===== Апгрейд =====
+// ===== ОТКРЫТИЕ МОДАЛКИ =====
 function openUpgrade(id) {
   if (isSpinning) return;
   const item = currentItems.find(i => i.id === id);
@@ -233,10 +205,9 @@ function openUpgrade(id) {
   selectedItemId = id;
   document.getElementById('modalItemName').textContent = item.name;
   document.getElementById('modalCurrentLevel').textContent = item.level;
-  document.getElementById('modalItemPrice').textContent = item.price;
+  document.getElementById('modalPrice').textContent = item.price;
   document.getElementById('modalResult').textContent = '';
   document.getElementById('upgradeBtn').disabled = false;
-  // Сбросить шанс на 50
   chanceSlider.value = 50;
   updateChanceDisplay();
   document.getElementById('upgradeModal').classList.add('active');
@@ -248,7 +219,7 @@ function closeModal() {
   selectedItemId = null;
 }
 
-// ===== Анимация вращения =====
+// ===== АНИМАЦИЯ ВРАЩЕНИЯ (ИСПРАВЛЕНА ЛОГИКА ПОПАДАНИЯ) =====
 function spinWheel(targetAngle, callback) {
   const duration = 3000;
   const startTime = performance.now();
@@ -261,23 +232,37 @@ function spinWheel(targetAngle, callback) {
     const progress = Math.min(elapsed / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const angle = startAngle + totalAngle * eased;
-    const chance = parseInt(chanceSlider.value);
-    drawWheel(chance);
     drawArrow(angle);
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      const finalAngle = angle % (Math.PI * 2);
-      // Определяем попадание
-      let normalized = ((finalAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-      const deg = normalized * 180 / Math.PI;
-      const sectorStart = 270;
-      const sectorEnd = sectorStart + (chance / 100) * 360;
+      // Определяем финальный угол (от 0 до 2PI)
+      let finalAngle = angle % (Math.PI * 2);
+      if (finalAngle < 0) finalAngle += Math.PI * 2;
+      // Проверяем попадание в сектор шанса
+      const chance = parseInt(chanceSlider.value);
+      // Сектор начинается с -PI/2 (12 часов) и идёт по часовой стрелке на chance%
+      const sectorStart = -Math.PI / 2;
+      const sectorEnd = sectorStart + (chance / 100) * Math.PI * 2;
+      // Приводим finalAngle к диапазону [0, 2PI)
+      // Сектор может быть от отрицательного до положительного, поэтому нормализуем
+      let normFinal = finalAngle;
+      // Переведём сектор в [0, 2PI)
+      let start = sectorStart;
+      let end = sectorEnd;
+      // Если сектор пересекает 0, разбиваем
+      // Но проще: проверяем, находится ли угол внутри сектора
+      // Нормализуем сектор в [0, 2PI)
+      while (start < 0) { start += Math.PI * 2; end += Math.PI * 2; }
+      while (start >= Math.PI * 2) { start -= Math.PI * 2; end -= Math.PI * 2; }
+      // Если end > 2PI, то сектор пересекает 0
       let hit = false;
-      if (sectorStart <= sectorEnd) {
-        if (deg >= sectorStart && deg <= sectorEnd) hit = true;
+      if (end <= Math.PI * 2) {
+        // Сектор в пределах одного оборота
+        if (normFinal >= start && normFinal <= end) hit = true;
       } else {
-        if (deg >= sectorStart || deg <= sectorEnd) hit = true;
+        // Сектор пересекает 0
+        if (normFinal >= start || normFinal <= end - Math.PI * 2) hit = true;
       }
       callback(hit);
     }
@@ -285,15 +270,15 @@ function spinWheel(targetAngle, callback) {
   requestAnimationFrame(animate);
 }
 
-// ===== Подтверждение апгрейда =====
+// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА =====
 async function confirmUpgrade() {
   if (isSpinning) return;
   const item = currentItems.find(i => i.id === selectedItemId);
   if (!item) return;
 
-  const baseChance = parseInt(chanceSlider.value);
-  const realChance = calculateHiddenChance(baseChance, item.price);
-  const coeff = calculateCoefficient(baseChance);
+  const chosenChance = parseInt(chanceSlider.value);
+  const hiddenChance = calculateHiddenChance(chosenChance, item.price);
+  const coeff = calculateCoefficient(chosenChance);
 
   const btn = document.getElementById('upgradeBtn');
   btn.disabled = true;
@@ -304,33 +289,34 @@ async function confirmUpgrade() {
   const targetAngle = Math.random() * Math.PI * 2;
 
   spinWheel(targetAngle, async (hit) => {
-    // Проверяем, попала ли стрелка в реальный сектор (скрытый шанс)
-    // Но мы уже рассчитали realChance, который меньше baseChance.
-    // Однако визуально сектор отображает baseChance, а решение принимаем по realChance.
-    // Это и есть "скрытый шанс": игрок видит один сектор, а реальный шанс меньше.
-    // Чтобы не перерисовывать круг, мы просто используем realChance для определения победы.
-    // Сделаем так: генерируем случайное число 0-1, если < realChance/100 -> победа.
-    const roll = Math.random() * 100;
-    const success = roll <= realChance;
+    // Но мы должны учесть скрытый шанс: фактически победа наступает, если hit И random < hiddenChance/100
+    // Чтобы не нарушать механику, мы сначала определяем hit по сектору, а потом дополнительно проверяем скрытый шанс
+    let actualWin = hit;
+    if (hit) {
+      // Дополнительная проверка скрытого шанса
+      const extraRoll = Math.random() * 100;
+      if (extraRoll > hiddenChance) {
+        actualWin = false; // переопределяем как проигрыш
+      }
+    }
 
-    if (success) {
-      // Победа: новый уровень = текущий * coeff, округляем вверх
+    if (actualWin) {
+      // ПОБЕДА
       const newLevel = Math.ceil(item.level * coeff);
-      // Отправляем на сервер
       try {
         const res = await fetch('/force-upgrade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: selectedItemId, newLevel, success: true })
+          body: JSON.stringify({ itemId: selectedItemId, newLevel })
         });
-        if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
           document.getElementById('modalResult').textContent = `🎉 Успех! Уровень стал ${newLevel} (x${coeff.toFixed(3)})`;
-          // Обновить инвентарь
           const itemInList = currentItems.find(i => i.id === selectedItemId);
           if (itemInList) itemInList.level = newLevel;
           renderInventory(currentItems);
-          updateBalance();
-          loadFeed();
+          // Добавляем в историю (сервер уже записал)
+          loadHistory();
         } else {
           document.getElementById('modalResult').textContent = '❌ Ошибка при обновлении';
         }
@@ -338,8 +324,15 @@ async function confirmUpgrade() {
         document.getElementById('modalResult').textContent = '❌ Ошибка соединения';
       }
     } else {
-      // Проигрыш: предмет удаляется
+      // ПРОИГРЫШ
       try {
+        // Записываем проигрыш в историю
+        await fetch('/record-lose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: selectedItemId })
+        });
+        // Удаляем предмет
         const res = await fetch('/delete-item', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -347,12 +340,8 @@ async function confirmUpgrade() {
         });
         if (res.ok) {
           document.getElementById('modalResult').textContent = '💀 Не повезло... Предмет сгорел!';
-          // Логируем проигрыш (на сервере логируется в force-upgrade, но мы не вызываем его при проигрыше, поэтому добавим отдельный лог)
-          // Можно также вызвать force-upgrade с success:false, но проще добавить отдельный эндпоинт для лога.
-          // Для простоты оставим так, лента обновится при следующей загрузке.
           loadInventory();
-          updateBalance();
-          loadFeed();
+          loadHistory();
         } else {
           document.getElementById('modalResult').textContent = '❌ Ошибка при удалении';
         }
@@ -360,47 +349,41 @@ async function confirmUpgrade() {
         document.getElementById('modalResult').textContent = '❌ Ошибка соединения';
       }
     }
-
     btn.disabled = false;
     isSpinning = false;
   });
 }
 
-// ===== Лента апгрейдов =====
-async function loadFeed() {
+// ===== ИСТОРИЯ (ОНЛАЙН-ЛЕНТА) =====
+async function loadHistory() {
   try {
-    const res = await fetch('/recent-upgrades');
-    if (res.ok) {
-      const logs = await res.json();
-      feedList.innerHTML = '';
-      if (logs.length === 0) {
-        feedList.innerHTML = '<li>Пока нет апгрейдов</li>';
-        return;
-      }
-      logs.forEach(log => {
-        const li = document.createElement('li');
-        const status = log.success ? '✅' : '❌';
-        const cls = log.success ? 'win' : 'lose';
-        li.innerHTML = `<span class="${cls}">${status}</span> ${log.username} улучшил ${log.item_name} (${log.old_level}→${log.new_level})`;
-        feedList.appendChild(li);
-      });
+    const res = await fetch('/history');
+    const entries = await res.json();
+    const list = document.getElementById('historyList');
+    if (!entries || entries.length === 0) {
+      list.innerHTML = '<span class="history-placeholder">Нет апгрейдов</span>';
+      return;
     }
-  } catch (e) {}
+    let html = '';
+    entries.forEach(entry => {
+      const cls = entry.win ? 'win' : 'lose';
+      const resultText = entry.win ? '✅' : '❌';
+      html += `
+        <div class="history-item ${cls}">
+          <span class="user">${escapeHtml(entry.username)}</span>
+          поставил <span class="item">${escapeHtml(entry.item_name)}</span>
+          ${entry.win ? `→ уровень ${entry.new_level}` : 'сгорел'}
+          <span class="result-${entry.win ? 'win' : 'lose'}">${resultText}</span>
+        </div>
+      `;
+    });
+    list.innerHTML = html;
+  } catch (e) {
+    document.getElementById('historyList').innerHTML = '<span class="history-placeholder">Ошибка загрузки истории</span>';
+  }
 }
 
-// ===== Баланс =====
-async function updateBalance() {
-  try {
-    const res = await fetch('/user');
-    if (res.ok) {
-      const data = await res.json();
-      balance = data.balance || 0;
-      document.getElementById('balanceDisplay').textContent = balance;
-    }
-  } catch (e) {}
-}
-
-// ===== Авторизация =====
+// ===== АВТОРИЗАЦИЯ =====
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -435,15 +418,15 @@ async function login() {
     const data = await res.json();
     if (data.success) {
       currentUser = data.username;
-      balance = data.balance || 0;
       document.getElementById('usernameDisplay').textContent = currentUser;
-      document.getElementById('balanceDisplay').textContent = balance;
       document.getElementById('authSection').style.display = 'none';
       document.getElementById('userInfo').style.display = 'block';
       document.getElementById('addItemSection').style.display = 'flex';
       showMessage('Добро пожаловать!', 'success');
       loadInventory();
-      loadFeed();
+      loadHistory();
+      // Периодическое обновление истории
+      setInterval(loadHistory, 5000);
     } else {
       showMessage(data.error || 'Ошибка', 'error');
     }
@@ -462,7 +445,7 @@ async function logout() {
   showMessage('Вы вышли', 'success');
 }
 
-// ===== Вспомогательные =====
+// ===== ВСПОМОГАТЕЛЬНЫЕ =====
 function showMessage(text, type) {
   const el = document.getElementById('message');
   el.textContent = text;
@@ -476,26 +459,26 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ===== Инициализация =====
-async function init() {
-  // Проверка сессии
+// ===== ПРОВЕРКА СЕССИИ =====
+async function fetchUser() {
   try {
     const res = await fetch('/user');
     if (res.ok) {
       const data = await res.json();
-      currentUser = data.username;
-      balance = data.balance || 0;
-      document.getElementById('usernameDisplay').textContent = currentUser;
-      document.getElementById('balanceDisplay').textContent = balance;
-      document.getElementById('authSection').style.display = 'none';
-      document.getElementById('userInfo').style.display = 'block';
-      document.getElementById('addItemSection').style.display = 'flex';
-      loadInventory();
-      loadFeed();
+      if (data.username) {
+        currentUser = data.username;
+        document.getElementById('usernameDisplay').textContent = currentUser;
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('userInfo').style.display = 'block';
+        document.getElementById('addItemSection').style.display = 'flex';
+        loadInventory();
+        loadHistory();
+        setInterval(loadHistory, 5000);
+      }
     }
   } catch (e) {}
-  // Начальная отрисовка круга
-  updateChanceDisplay();
 }
+fetchUser();
 
-init();
+// Инициализация круга
+updateChanceDisplay();
