@@ -7,6 +7,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- Логгер запросов (добавлен) ---
+app.use((req, res, next) => {
+  console.log(`📩 ${req.method} ${req.url}`);
+  next();
+});
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -57,6 +63,11 @@ function getInventory(userId) {
     });
   });
 }
+
+// --- Явный корневой маршрут (на всякий случай) ---
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // API
 app.get('/user', async (req, res) => {
@@ -171,7 +182,7 @@ app.post('/upgrade', async (req, res) => {
   }
 });
 
-// ====== ГЛАВНОЕ ИСПРАВЛЕНИЕ: слушаем 0.0.0.0 ======
+// Запуск на всех интерфейсах
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Сервер запущен на http://0.0.0.0:${PORT}`);
 });
