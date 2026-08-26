@@ -11,20 +11,19 @@ const chanceDisplay = document.getElementById('chanceDisplay');
 const coeffDisplay = document.getElementById('coefficientDisplay');
 const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
 
-const LUCK = -0.05;
-
-// ===== РАСЧЁТЫ =====
+// ===== НОВАЯ ФОРМУЛА КОЭФФИЦИЕНТА =====
 function calculateCoefficient(chance) {
-  return 2 - (chance - 50) * 0.03 + LUCK;
+  return 100 / chance; // при chance=1% → 100, при 99% → ~1.01
 }
 
+// ===== СКРЫТЫЙ ШАНС (штраф от цены) =====
 function calculateHiddenChance(chance, price) {
-  const penalty = Math.min(10, price / 1000);
+  const penalty = Math.min(10, price / 1000); // макс. штраф 10%
   return Math.max(1, chance - penalty);
 }
 
 // ===== РИСОВАНИЕ =====
-function drawWheel(chance) {
+function drawWheel(realChance) {
   const w = canvas.width, h = canvas.height;
   const cx = w/2, cy = h/2;
   const radius = Math.min(w,h)/2 - 10;
@@ -38,9 +37,9 @@ function drawWheel(chance) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  if (chance > 0) {
+  if (realChance > 0) {
     const startAngle = -Math.PI/2;
-    const endAngle = startAngle + (chance/100)*Math.PI*2;
+    const endAngle = startAngle + (realChance/100) * 2*Math.PI;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, startAngle, endAngle);
@@ -62,25 +61,16 @@ function drawArrow(angle) {
   const w = canvas.width, h = canvas.height;
   const cx = w/2, cy = h/2;
   const radius = Math.min(w,h)/2 - 10;
-
-  // Перерисовываем круг с текущим реальным шансом
-  const item = currentItems.find(i => i.id === selectedItemId);
-  const price = item ? item.price : 100;
-  const declared = parseInt(chanceSlider.value);
-  const realChance = calculateHiddenChance(declared, price);
-  drawWheel(realChance);
-
+  drawWheel(window._lastRealChance || 50);
   const arrowLen = radius * 0.8;
   const tipX = cx + Math.sin(angle) * arrowLen;
   const tipY = cy - Math.cos(angle) * arrowLen;
-
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(tipX, tipY);
   ctx.strokeStyle = '#ff4444';
   ctx.lineWidth = 4;
   ctx.stroke();
-
   ctx.beginPath();
   ctx.arc(cx, cy, 6, 0, Math.PI*2);
   ctx.fillStyle = '#ff4444';
@@ -98,6 +88,7 @@ function updateChanceDisplay() {
   const price = item ? item.price : 100;
   const real = calculateHiddenChance(declared, price);
   hiddenChanceDisplay.textContent = real.toFixed(1);
+  window._lastRealChance = real;
 
   drawWheel(real);
   drawArrow(0);
@@ -105,7 +96,7 @@ function updateChanceDisplay() {
 
 chanceSlider.addEventListener('input', updateChanceDisplay);
 
-// ===== ИНВЕНТАРЬ =====
+// ===== ИНВЕНТАРЬ (без изменений) =====
 async function loadInventory() {
   try {
     const res = await fetch('/inventory');
@@ -207,18 +198,14 @@ function closeModal() {
   selectedItemId = null;
 }
 
-// ===== ВРАЩЕНИЕ (ИСПРАВЛЕНО) =====
+// ===== ВРАЩЕНИЕ (без изменений, работает) =====
 function spinWheel(targetAngle, callback) {
   const duration = 3000;
   const startTime = performance.now();
   const startAngle = 0;
   const extraRotations = 5 + Math.random() * 3;
   const totalAngle = targetAngle + extraRotations * Math.PI * 2;
-
-  const item = currentItems.find(i => i.id === selectedItemId);
-  const price = item ? item.price : 100;
-  const declared = parseInt(chanceSlider.value);
-  const realChance = calculateHiddenChance(declared, price);
+  const realChance = window._lastRealChance || 50;
 
   function animate(time) {
     const elapsed = time - startTime;
@@ -230,31 +217,26 @@ function spinWheel(targetAngle, callback) {
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      let finalAngle = angle % (Math.PI * 2);
-      if (finalAngle < 0) finalAngle += Math.PI * 2;
-      const deg = finalAngle * 180 / Math.PI;
-      const sectorStartDeg = -90;
-      const sectorEndDeg = sectorStartDeg + (realChance / 100) * 360;
-
-      let normDeg = ((deg % 360) + 360) % 360;
-      let start = ((sectorStartDeg % 360) + 360) % 360;
-      let end = ((sectorEndDeg % 360) + 360) % 360;
-
+      let finalAngle = angle % (2 * Math.PI);
+      if (finalAngle < 0) finalAngle += 2 * Math.PI;
+      const sectorStart = -Math.PI / 2;
+      const sectorEnd = sectorStart + (realChance / 100) * 2 * Math.PI;
+      let startNorm = ((sectorStart % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      let endNorm = ((sectorEnd % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       let hit = false;
-      if (start < end) {
-        if (normDeg >= start && normDeg <= end) hit = true;
+      if (startNorm < endNorm) {
+        if (finalAngle >= startNorm && finalAngle <= endNorm) hit = true;
       } else {
-        if (normDeg >= start || normDeg <= end) hit = true;
+        if (finalAngle >= startNorm || finalAngle <= endNorm) hit = true;
       }
-
-      console.log(`🎯 Угол: ${normDeg}°, сектор: ${start}° - ${end}°, попал: ${hit}`);
+      console.log(`🎯 Угол: ${(finalAngle * 180 / Math.PI).toFixed(1)}°, сектор: ${(startNorm * 180 / Math.PI).toFixed(1)}° - ${(endNorm * 180 / Math.PI).toFixed(1)}°, попал: ${hit}`);
       callback(hit);
     }
   }
   requestAnimationFrame(animate);
 }
 
-// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА =====
+// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА (исправлено) =====
 async function confirmUpgrade() {
   if (isSpinning) return;
   const item = currentItems.find(i => i.id === selectedItemId);
@@ -273,19 +255,23 @@ async function confirmUpgrade() {
 
   spinWheel(targetAngle, async (hit) => {
     if (hit) {
-      // ПОБЕДА
+      // ПОБЕДА: новый уровень и цена
       const newLevel = Math.ceil(item.level * coeff);
+      const newPrice = Math.ceil(item.price * coeff);
       try {
         const res = await fetch('/force-upgrade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: selectedItemId, newLevel })
+          body: JSON.stringify({ itemId: selectedItemId, newLevel, newPrice })
         });
         const data = await res.json();
         if (data.success) {
-          document.getElementById('modalResult').textContent = `🎉 Успех! Уровень стал ${newLevel} (x${coeff.toFixed(3)})`;
+          document.getElementById('modalResult').textContent = `🎉 Успех! Уровень ${newLevel}, цена ${newPrice} (x${coeff.toFixed(3)})`;
           const itemInList = currentItems.find(i => i.id === selectedItemId);
-          if (itemInList) itemInList.level = newLevel;
+          if (itemInList) {
+            itemInList.level = newLevel;
+            itemInList.price = newPrice;
+          }
           renderInventory(currentItems);
           loadHistory();
         } else {
@@ -323,7 +309,7 @@ async function confirmUpgrade() {
   });
 }
 
-// ===== ИСТОРИЯ =====
+// ===== ИСТОРИЯ (без изменений) =====
 async function loadHistory() {
   try {
     const res = await fetch('/history');
@@ -352,7 +338,7 @@ async function loadHistory() {
   }
 }
 
-// ===== АВТОРИЗАЦИЯ =====
+// ===== АВТОРИЗАЦИЯ (без изменений) =====
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();

@@ -102,7 +102,6 @@ function generateItemPool() {
     const base_price = Math.floor(rarity * 1.5 + Math.random() * 100);
     items.push({ name, base_price, rarity });
   }
-  // Убираем дубликаты по имени
   const unique = [];
   const seen = new Set();
   for (const item of items) {
@@ -122,7 +121,6 @@ function generateItemPool() {
   });
 }
 
-// Заполняем пул при старте, если пуст
 db.get('SELECT COUNT(*) as count FROM item_pool', (err, row) => {
   if (err) console.error(err);
   else if (row.count === 0) {
@@ -144,7 +142,6 @@ app.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], function(err) {
       if (err) return res.status(400).json({ error: 'Пользователь уже существует' });
-      // Выдаём 3 случайных предмета
       db.all('SELECT * FROM item_pool ORDER BY RANDOM() LIMIT 3', (err2, items) => {
         if (!err2 && items) {
           const stmt = db.prepare('INSERT INTO inventory (user_id, name, price, rarity, level) VALUES (?, ?, ?, ?, ?)');
@@ -212,11 +209,12 @@ app.post('/delete-item', async (req, res) => {
   });
 });
 
+// ===== ИСПРАВЛЕННЫЙ ЭНДПОИНТ: теперь обновляем и цену =====
 app.post('/force-upgrade', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { itemId, newLevel } = req.body;
-  if (!itemId || !newLevel) return res.status(400).json({ error: 'Некорректные данные' });
+  const { itemId, newLevel, newPrice } = req.body;
+  if (!itemId || !newLevel || !newPrice) return res.status(400).json({ error: 'Некорректные данные' });
 
   const item = await new Promise((resolve, reject) => {
     db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], (err, row) => {
@@ -227,8 +225,9 @@ app.post('/force-upgrade', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'Предмет не найден' });
 
   const oldLevel = item.level;
+  const oldPrice = item.price;
   await new Promise((resolve, reject) => {
-    db.run('UPDATE inventory SET level = ? WHERE id = ?', [newLevel, itemId], (err) => {
+    db.run('UPDATE inventory SET level = ?, price = ? WHERE id = ?', [newLevel, newPrice, itemId], (err) => {
       if (err) reject(err);
       else resolve();
     });
