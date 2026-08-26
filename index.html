@@ -9,7 +9,15 @@
 <body>
 <div class="container">
   <h1>🎰 Апгрейдер CS:GO</h1>
-  <div class="subtitle">Поставь скин – рискуй – улучшай или теряй</div>
+  <div class="subtitle">Ставь скин – рискуй – улучшай или теряй</div>
+
+  <!-- Лента онлайн-апгрейдов -->
+  <div id="upgradeFeed" class="upgrade-feed">
+    <h3>⚡ Последние апгрейды</h3>
+    <ul id="feedList">
+      <li>Загрузка...</li>
+    </ul>
+  </div>
 
   <!-- Блок авторизации -->
   <div id="authSection" class="auth-section">
@@ -21,20 +29,18 @@
 
   <!-- Информация о пользователе -->
   <div id="userInfo" class="user-info" style="display:none;">
-    Привет, <span id="usernameDisplay"></span>
+    Привет, <span id="usernameDisplay"></span> | Баланс: <span id="balanceDisplay">0</span> 🪙
     <button class="logout-btn" onclick="logout()">Выйти</button>
   </div>
 
-  <!-- Добавление предмета -->
+  <!-- Генерация случайного предмета -->
   <div id="addItemSection" style="display:none;">
     <div class="add-item">
-      <input type="text" id="itemName" placeholder="Название предмета" />
-      <input type="number" id="itemLevel" placeholder="Уровень (число)" min="1" value="1" />
-      <button onclick="addItem()">➕ Добавить</button>
+      <button onclick="generateAndAddItem()">🎲 Получить случайный предмет</button>
     </div>
   </div>
 
-  <!-- Инвентарь -->
+  <!-- Инвентарь в виде сетки -->
   <div id="inventoryContainer">
     <div class="empty-msg">Загружаем инвентарь...</div>
   </div>
@@ -46,15 +52,23 @@
 <div id="upgradeModal" class="modal">
   <div class="modal-content">
     <h2>⚡ Апгрейд</h2>
-    <p id="modalItemName" style="font-size:1.2rem; margin-bottom:5px;"></p>
-    <p style="color:#aaa;">Текущий уровень: <span id="modalCurrentLevel"></span></p>
-    <p style="margin:15px 0 5px;">Выбери шанс:</p>
-    <div class="chance-buttons">
-      <button onclick="selectChance(50)">50%</button>
-      <button onclick="selectChance(30)">30%</button>
-      <button onclick="selectChance(10)">10%</button>
+    <p id="modalItemName" style="font-size:1.2rem;"></p>
+    <p style="color:#aaa;">Уровень: <span id="modalCurrentLevel"></span> | Цена: <span id="modalItemPrice"></span> 🪙</p>
+
+    <canvas id="wheelCanvas" width="250" height="250"></canvas>
+
+    <div style="margin: 15px 0;">
+      <label for="chanceSlider">Шанс: <span id="chanceDisplay">50</span>%</label>
+      <input type="range" id="chanceSlider" min="1" max="99" value="50" step="1" style="width:100%;" />
     </div>
-    <div id="chanceInfo" style="font-size:0.9rem; color:#aaa;">При успехе: +1 уровень</div>
+
+    <div style="font-size:0.95rem; color:#aaa;">
+      Коэффициент: <span id="coefficientDisplay">1.95</span>x
+    </div>
+    <div style="font-size:0.9rem; color:#888; margin-top:5px;">
+      (Скрытый шанс с учётом цены: <span id="hiddenChanceDisplay">50</span>%)
+    </div>
+
     <div id="modalResult" class="result"></div>
     <button onclick="confirmUpgrade()" id="upgradeBtn" class="upgrade-btn">КРУТИТЬ!</button>
     <br />

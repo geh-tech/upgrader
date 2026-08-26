@@ -1,7 +1,7 @@
 {
   "name": "csgo-upgrader",
   "version": "1.0.0",
-  "description": "upgrader",
+  "description": "Casino-style upgrader with wheel",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

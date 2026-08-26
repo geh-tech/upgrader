@@ -7,12 +7,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Логгер запросов (добавлен) ---
-app.use((req, res, next) => {
-  console.log(`📩 ${req.method} ${req.url}`);
-  next();
-});
-
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,7 +26,8 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
-    password TEXT
+    password TEXT,
+    balance INTEGER DEFAULT 0
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inventory (
@@ -40,15 +35,30 @@ db.serialize(() => {
     user_id INTEGER,
     name TEXT,
     level INTEGER,
+    price INTEGER,
+    rarity TEXT,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  )`);
+
+  // Таблица для логов апгрейдов (последние события)
+  db.run(`CREATE TABLE IF NOT EXISTS upgrade_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    item_name TEXT,
+    old_level INTEGER,
+    new_level INTEGER,
+    success BOOLEAN,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 });
 
-// Вспомогательные функции
+// ========== Вспомогательные функции ==========
+
 function getUser(req) {
   return new Promise((resolve, reject) => {
     if (!req.session.userId) return resolve(null);
-    db.get('SELECT id, username FROM users WHERE id = ?', [req.session.userId], (err, row) => {
+    db.get('SELECT id, username, balance FROM users WHERE id = ?', [req.session.userId], (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
@@ -64,18 +74,56 @@ function getInventory(userId) {
   });
 }
 
-// --- Явный корневой маршрут (на всякий случай) ---
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Генерация предмета (название, уровень, цена, редкость)
+const prefixes = ['Тенистый', 'Пламенный', 'Ледяной', 'Тёмный', 'Светлый', 'Древний', 'Божественный', 'Демонический', 'Космический', 'Звёздный', 'Лунный', 'Солнечный', 'Титановый', 'Радужный', 'Неоновый', 'Ржавый', 'Золотой', 'Серебряный', 'Бронзовый', 'Мифический', 'Легендарный', 'Эпический', 'Редкий', 'Необычный', 'Обычный', 'Базовый'];
+const suffixes = ['Клинок', 'Доспех', 'Шлем', 'Амулет', 'Кольцо', 'Посох', 'Меч', 'Щит', 'Лук', 'Арбалет', 'Кинжал', 'Топор', 'Молот', 'Копьё', 'Чешуя', 'Кристалл', 'Руна', 'Глаз', 'Сердце', 'Печать', 'Скипетр', 'Жезл', 'Корона', 'Плащ', 'Крыло'];
 
-// API
+function generateItem() {
+  // Уровень 1-100, цена = уровень * 10 + случайный бонус
+  const level = Math.floor(Math.random() * 100) + 1;
+  const price = level * 10 + Math.floor(Math.random() * 50);
+  // Редкость на основе уровня
+  let rarity = '';
+  if (level >= 90) rarity = 'Вселенский';
+  else if (level >= 70) rarity = 'Мифический';
+  else if (level >= 50) rarity = 'Легендарный';
+  else if (level >= 30) rarity = 'Эпический';
+  else if (level >= 15) rarity = 'Редкий';
+  else if (level >= 5) rarity = 'Необычный';
+  else rarity = 'Обычный';
+
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+  const name = prefix + ' ' + suffix;
+  return { name, level, price, rarity };
+}
+
+// Получить последние логи апгрейдов (для онлайн-ленты)
+function getRecentUpgrades(limit = 5) {
+  return new Promise((resolve, reject) => {
+    db.all(`
+      SELECT u.username, l.item_name, l.old_level, l.new_level, l.success, l.timestamp
+      FROM upgrade_logs l
+      JOIN users u ON l.user_id = u.id
+      ORDER BY l.timestamp DESC
+      LIMIT ?
+    `, [limit], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
+// ========== API ==========
+
+// Получить текущего пользователя
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  res.json({ username: user.username });
+  res.json({ username: user.username, balance: user.balance });
 });
 
+// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -90,6 +138,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// Вход
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
@@ -97,15 +146,17 @@ app.post('/login', (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ error: 'Неверный логин или пароль' });
     req.session.userId = user.id;
-    res.json({ success: true, username: user.username });
+    res.json({ success: true, username: user.username, balance: user.balance });
   });
 });
 
+// Выход
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
 });
 
+// Инвентарь
 app.get('/inventory', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -113,19 +164,31 @@ app.get('/inventory', async (req, res) => {
   res.json(items);
 });
 
+// Добавить предмет (можно использовать для получения случайного)
 app.post('/add-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { name, level } = req.body;
-  if (!name || !level) return res.status(400).json({ error: 'Введите название и уровень' });
-  const lvl = parseInt(level);
-  if (isNaN(lvl) || lvl < 1) return res.status(400).json({ error: 'Уровень должен быть числом >= 1' });
-  db.run('INSERT INTO inventory (user_id, name, level) VALUES (?, ?, ?)', [user.id, name, lvl], function(err) {
-    if (err) return res.status(500).json({ error: 'Ошибка БД' });
-    res.json({ success: true, id: this.lastID });
-  });
+  let { name, level, price, rarity } = req.body;
+  // Если не переданы, генерируем случайный
+  if (!name) {
+    const gen = generateItem();
+    name = gen.name;
+    level = gen.level;
+    price = gen.price;
+    rarity = gen.rarity;
+  } else {
+    level = parseInt(level) || 1;
+    price = parseInt(price) || level * 10;
+    rarity = rarity || 'Обычный';
+  }
+  db.run('INSERT INTO inventory (user_id, name, level, price, rarity) VALUES (?, ?, ?, ?, ?)',
+    [user.id, name, level, price, rarity], function(err) {
+      if (err) return res.status(500).json({ error: 'Ошибка БД' });
+      res.json({ success: true, id: this.lastID });
+    });
 });
 
+// Удалить предмет (продать или потерять)
 app.post('/delete-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -136,12 +199,23 @@ app.post('/delete-item', async (req, res) => {
   });
 });
 
-app.post('/upgrade', async (req, res) => {
+// Получить случайный предмет (генерируется на сервере)
+app.get('/generate-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { itemId, chance } = req.body;
-  if (!itemId || !chance) return res.status(400).json({ error: 'Некорректные данные' });
+  const item = generateItem();
+  // Можно сразу добавить в инвентарь или вернуть данные — пока вернём данные, а клиент сам добавит
+  res.json(item);
+});
 
+// Апгрейд с принудительным результатом (используем для клиентской анимации)
+app.post('/force-upgrade', async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Не авторизован' });
+  const { itemId, newLevel, success } = req.body;
+  if (!itemId || newLevel === undefined) return res.status(400).json({ error: 'Некорректные данные' });
+
+  // Получаем предмет
   const item = await new Promise((resolve, reject) => {
     db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], (err, row) => {
       if (err) reject(err);
@@ -150,39 +224,28 @@ app.post('/upgrade', async (req, res) => {
   });
   if (!item) return res.status(404).json({ error: 'Предмет не найден' });
 
-  const chanceNum = parseInt(chance);
-  if (![10, 30, 50].includes(chanceNum)) return res.status(400).json({ error: 'Недопустимый шанс' });
-
-  let bonus = 0;
-  if (chanceNum === 50) bonus = 1;
-  else if (chanceNum === 30) bonus = 2;
-  else if (chanceNum === 10) bonus = 5;
-
-  const roll = Math.floor(Math.random() * 100) + 1;
-  const success = roll <= chanceNum;
-
-  let newLevel = item.level;
-  if (success) {
-    newLevel += bonus;
-    await new Promise((resolve, reject) => {
-      db.run('UPDATE inventory SET level = ? WHERE id = ?', [newLevel, item.id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
+  // Обновляем уровень
+  await new Promise((resolve, reject) => {
+    db.run('UPDATE inventory SET level = ? WHERE id = ?', [newLevel, itemId], (err) => {
+      if (err) reject(err);
+      else resolve();
     });
-    res.json({ success: true, result: 'win', newLevel, message: `🎉 Успех! Уровень +${bonus} (теперь ${newLevel})` });
-  } else {
-    await new Promise((resolve, reject) => {
-      db.run('DELETE FROM inventory WHERE id = ?', [item.id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    res.json({ success: true, result: 'lose', message: '💀 Не повезло... Предмет сгорел!' });
-  }
+  });
+
+  // Логируем апгрейд
+  db.run('INSERT INTO upgrade_logs (user_id, item_name, old_level, new_level, success) VALUES (?, ?, ?, ?, ?)',
+    [user.id, item.name, item.level, newLevel, success ? 1 : 0]);
+
+  res.json({ success: true });
 });
 
-// Запуск на всех интерфейсах
+// Получить последние апгрейды (для ленты)
+app.get('/recent-upgrades', async (req, res) => {
+  const logs = await getRecentUpgrades(10);
+  res.json(logs);
+});
+
+// Запуск
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Сервер запущен на http://0.0.0.0:${PORT}`);
 });
