@@ -8,7 +8,6 @@
 </head>
 <body>
 
-<!-- ===== ЛЕНТА ОНЛАЙН-АПГРЕЙДОВ ===== -->
 <div id="historyBar">
   <div class="history-container">
     <span class="history-label">🔥 Онлайн апгрейды:</span>
@@ -18,12 +17,10 @@
   </div>
 </div>
 
-<!-- ===== ОСНОВНОЙ КОНТЕЙНЕР ===== -->
 <div class="container">
   <h1>🎰 Апгрейдер CS:GO</h1>
   <div class="subtitle">Поставь скин – рискуй – улучшай или теряй</div>
 
-  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -31,13 +28,11 @@
     <button onclick="register()">Регистрация</button>
   </div>
 
-  <!-- Информация о пользователе -->
   <div id="userInfo" class="user-info" style="display:none;">
     Привет, <span id="usernameDisplay"></span>
     <button class="logout-btn" onclick="logout()">Выйти</button>
   </div>
 
-  <!-- Добавление предмета (для теста) -->
   <div id="addItemSection" style="display:none;">
     <div class="add-item">
       <input type="text" id="itemName" placeholder="Название предмета" />
@@ -46,7 +41,6 @@
     </div>
   </div>
 
-  <!-- ИНВЕНТАРЬ (СЕТКА) -->
   <div id="inventoryContainer">
     <div class="empty-msg">Загружаем инвентарь...</div>
   </div>
@@ -54,7 +48,6 @@
   <div id="message" class="error-msg"></div>
 </div>
 
-<!-- ===== МОДАЛЬНОЕ ОКНО АПГРЕЙДА ===== -->
 <div id="upgradeModal" class="modal">
   <div class="modal-content">
     <h2>⚡ Апгрейд</h2>
@@ -62,19 +55,16 @@
     <p style="color:#aaa;">Текущий уровень: <span id="modalCurrentLevel"></span></p>
     <p style="color:#aaa;">Цена: <span id="modalPrice"></span></p>
 
-    <!-- Canvas для круга -->
     <canvas id="wheelCanvas" width="250" height="250"></canvas>
 
-    <!-- Ползунок шанса -->
     <div style="margin: 15px 0;">
-      <label for="chanceSlider">Шанс: <span id="chanceDisplay">50</span>%</label>
+      <label for="chanceSlider">Заявленный шанс: <span id="chanceDisplay">50</span>%</label>
       <input type="range" id="chanceSlider" min="1" max="99" value="50" step="1" style="width:100%;" />
     </div>
 
-    <!-- Отображение коэффициента и скрытого шанса -->
     <div style="font-size:0.95rem; color:#aaa;">
       Коэффициент: <span id="coefficientDisplay">1.95</span>x<br />
-      Скрытый шанс: <span id="hiddenChanceDisplay">50.0</span>%
+      Реальный шанс (с учётом цены): <span id="hiddenChanceDisplay">50.0</span>%
     </div>
 
     <div id="modalResult" class="result"></div>

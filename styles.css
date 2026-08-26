@@ -3,7 +3,6 @@
   margin: 0;
   padding: 0;
 }
-
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #0b0b0b;
@@ -15,7 +14,6 @@ body {
   padding: 20px;
 }
 
-/* ===== ЛЕНТА ИСТОРИИ ===== */
 #historyBar {
   width: 100%;
   max-width: 900px;
@@ -26,20 +24,17 @@ body {
   border: 1px solid #2a2a2a;
   overflow: hidden;
 }
-
 .history-container {
   display: flex;
   align-items: center;
   gap: 15px;
   flex-wrap: wrap;
 }
-
 .history-label {
   font-weight: bold;
   color: #ffd700;
   white-space: nowrap;
 }
-
 .history-list {
   display: flex;
   gap: 12px;
@@ -48,7 +43,6 @@ body {
   padding: 5px 0;
   scrollbar-width: thin;
 }
-
 .history-list::-webkit-scrollbar {
   height: 4px;
 }
@@ -56,7 +50,6 @@ body {
   background: #ffd700;
   border-radius: 10px;
 }
-
 .history-item {
   background: #252525;
   padding: 4px 12px;
@@ -84,13 +77,11 @@ body {
 .history-item .result-lose {
   color: #ff6b6b;
 }
-
 .history-placeholder {
   color: #666;
   font-style: italic;
 }
 
-/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
 .container {
   max-width: 900px;
   width: 100%;
@@ -100,7 +91,6 @@ body {
   box-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
   border: 1px solid #2a2a2a;
 }
-
 h1 {
   text-align: center;
   font-size: 2.2rem;
@@ -109,7 +99,6 @@ h1 {
   text-shadow: 0 0 20px #ffd70055;
   letter-spacing: 2px;
 }
-
 .subtitle {
   text-align: center;
   color: #aaa;
@@ -117,7 +106,6 @@ h1 {
   font-size: 0.95rem;
 }
 
-/* ===== АВТОРИЗАЦИЯ ===== */
 .auth-section {
   display: flex;
   flex-wrap: wrap;
@@ -173,7 +161,6 @@ h1 {
   background: #555;
 }
 
-/* ===== ДОБАВЛЕНИЕ ПРЕДМЕТА ===== */
 .add-item {
   display: flex;
   gap: 12px;
@@ -206,11 +193,9 @@ h1 {
   background: #3a9a3a;
 }
 
-/* ===== ИНВЕНТАРЬ (СЕТКА) ===== */
 #inventoryContainer {
   margin: 20px 0;
 }
-
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -301,7 +286,6 @@ h1 {
   padding: 30px;
 }
 
-/* ===== СООБЩЕНИЯ ===== */
 .error-msg {
   color: #ff6b6b;
   text-align: center;
@@ -313,7 +297,6 @@ h1 {
   margin: 10px 0;
 }
 
-/* ===== МОДАЛЬНОЕ ОКНО ===== */
 .modal {
   display: none;
   position: fixed;
@@ -341,34 +324,6 @@ h1 {
 .modal-content h2 {
   color: #ffd700;
   margin-bottom: 20px;
-}
-.modal-content .chance-buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin: 20px 0;
-  flex-wrap: wrap;
-}
-.modal-content .chance-buttons button {
-  padding: 12px 20px;
-  border: none;
-  border-radius: 40px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  background: #333;
-  color: #fff;
-  transition: 0.2s;
-  flex: 1;
-  min-width: 80px;
-}
-.modal-content .chance-buttons button:hover {
-  background: #555;
-  transform: scale(1.05);
-}
-.modal-content .chance-buttons button.selected {
-  background: #ffd700;
-  color: #111;
 }
 .modal-content .result {
   margin: 20px 0;
@@ -403,7 +358,6 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Канвас */
 #wheelCanvas {
   display: block;
   margin: 10px auto;
@@ -412,7 +366,6 @@ h1 {
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
 }
 
-/* Ползунок */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -439,7 +392,6 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
-/* ===== АДАПТИВ ===== */
 @media (max-width: 600px) {
   .container {
     padding: 20px;

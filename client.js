@@ -1,4 +1,4 @@
-// ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
+// ===== ГЛОБАЛЬНЫЕ =====
 let currentUser = null;
 let currentItems = [];
 let selectedItemId = null;
@@ -13,70 +13,63 @@ const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
 
 const LUCK = -0.05;
 
-// ===== ФУНКЦИИ РАСЧЁТА =====
+// ===== РАСЧЁТЫ =====
 function calculateCoefficient(chance) {
   return 2 - (chance - 50) * 0.03 + LUCK;
 }
 
 function calculateHiddenChance(chance, price) {
-  // Чем выше цена, тем больше штраф (макс. штраф 10% при цене > 10000)
-  const penalty = Math.min(10, price / 1000); // 0..10
+  const penalty = Math.min(10, price / 1000);
   return Math.max(1, chance - penalty);
 }
 
-// ===== РИСОВАНИЕ КРУГА =====
+// ===== РИСОВАНИЕ =====
 function drawWheel(chance) {
-  const w = canvas.width;
-  const h = canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const radius = Math.min(w, h) / 2 - 10;
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  const radius = Math.min(w,h)/2 - 10;
 
   ctx.clearRect(0, 0, w, h);
-
-  // Фон
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
   ctx.fillStyle = '#1a1a1a';
   ctx.fill();
   ctx.strokeStyle = '#ffd700';
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Сектор шанса (от 12 часов по часовой стрелке)
   if (chance > 0) {
-    const startAngle = -Math.PI / 2;
-    const endAngle = startAngle + (chance / 100) * Math.PI * 2;
+    const startAngle = -Math.PI/2;
+    const endAngle = startAngle + (chance/100)*Math.PI*2;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, startAngle, endAngle);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+    ctx.fillStyle = 'rgba(255,215,0,0.6)';
     ctx.fill();
     ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
 
-  // Центральная точка
   ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 4, 0, Math.PI*2);
   ctx.fillStyle = '#ffd700';
   ctx.fill();
 }
 
 function drawArrow(angle) {
-  const w = canvas.width;
-  const h = canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const radius = Math.min(w, h) / 2 - 10;
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  const radius = Math.min(w,h)/2 - 10;
 
-  // Перерисовываем круг с текущим шансом
-  const chance = parseInt(chanceSlider.value);
-  drawWheel(chance);
+  // Перерисовываем круг с текущим реальным шансом
+  const item = currentItems.find(i => i.id === selectedItemId);
+  const price = item ? item.price : 100;
+  const declared = parseInt(chanceSlider.value);
+  const realChance = calculateHiddenChance(declared, price);
+  drawWheel(realChance);
 
-  // Стрелка
   const arrowLen = radius * 0.8;
   const tipX = cx + Math.sin(angle) * arrowLen;
   const tipY = cy - Math.cos(angle) * arrowLen;
@@ -89,31 +82,30 @@ function drawArrow(angle) {
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 6, 0, Math.PI*2);
   ctx.fillStyle = '#ff4444';
   ctx.fill();
 }
 
-// ===== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ =====
+// ===== ОБНОВЛЕНИЕ =====
 function updateChanceDisplay() {
-  const chance = parseInt(chanceSlider.value);
-  chanceDisplay.textContent = chance;
-  const coeff = calculateCoefficient(chance);
+  const declared = parseInt(chanceSlider.value);
+  chanceDisplay.textContent = declared;
+  const coeff = calculateCoefficient(declared);
   coeffDisplay.textContent = coeff.toFixed(3);
 
-  // Получаем цену выбранного предмета
   const item = currentItems.find(i => i.id === selectedItemId);
   const price = item ? item.price : 100;
-  const hidden = calculateHiddenChance(chance, price);
-  hiddenChanceDisplay.textContent = hidden.toFixed(1);
+  const real = calculateHiddenChance(declared, price);
+  hiddenChanceDisplay.textContent = real.toFixed(1);
 
-  drawWheel(chance);
+  drawWheel(real);
   drawArrow(0);
 }
 
 chanceSlider.addEventListener('input', updateChanceDisplay);
 
-// ===== ИНВЕНТАРЬ (СЕТКА) =====
+// ===== ИНВЕНТАРЬ =====
 async function loadInventory() {
   try {
     const res = await fetch('/inventory');
@@ -122,14 +114,14 @@ async function loadInventory() {
     currentItems = items;
     renderInventory(items);
   } catch (e) {
-    document.getElementById('inventoryContainer').innerHTML = '<div class="empty-msg">Ошибка загрузки инвентаря</div>';
+    document.getElementById('inventoryContainer').innerHTML = '<div class="empty-msg">Ошибка загрузки</div>';
   }
 }
 
 function renderInventory(items) {
   const container = document.getElementById('inventoryContainer');
   if (!items || items.length === 0) {
-    container.innerHTML = '<div class="empty-msg">У вас пока нет предметов. Добавьте свой первый!</div>';
+    container.innerHTML = '<div class="empty-msg">У вас пока нет предметов.</div>';
     return;
   }
   let html = '<div class="inventory-grid">';
@@ -151,14 +143,11 @@ function renderInventory(items) {
   container.innerHTML = html;
 }
 
-// ===== ДОБАВЛЕНИЕ ПРЕДМЕТА (для теста) =====
+// ===== ДОБАВЛЕНИЕ / УДАЛЕНИЕ =====
 async function addItem() {
   const name = document.getElementById('itemName').value.trim();
   const price = parseInt(document.getElementById('itemPrice').value) || 100;
-  if (!name) {
-    showMessage('Введите название', 'error');
-    return;
-  }
+  if (!name) { showMessage('Введите название', 'error'); return; }
   try {
     const res = await fetch('/add-item', {
       method: 'POST',
@@ -178,9 +167,8 @@ async function addItem() {
   }
 }
 
-// ===== УДАЛЕНИЕ =====
 async function deleteItem(id) {
-  if (!confirm('Удалить предмет?')) return;
+  if (!confirm('Удалить?')) return;
   try {
     const res = await fetch('/delete-item', {
       method: 'POST',
@@ -197,7 +185,7 @@ async function deleteItem(id) {
   }
 }
 
-// ===== ОТКРЫТИЕ МОДАЛКИ =====
+// ===== МОДАЛКА =====
 function openUpgrade(id) {
   if (isSpinning) return;
   const item = currentItems.find(i => i.id === id);
@@ -219,7 +207,7 @@ function closeModal() {
   selectedItemId = null;
 }
 
-// ===== АНИМАЦИЯ ВРАЩЕНИЯ (ИСПРАВЛЕНА ЛОГИКА ПОПАДАНИЯ) =====
+// ===== ВРАЩЕНИЕ (ИСПРАВЛЕНО) =====
 function spinWheel(targetAngle, callback) {
   const duration = 3000;
   const startTime = performance.now();
@@ -227,43 +215,39 @@ function spinWheel(targetAngle, callback) {
   const extraRotations = 5 + Math.random() * 3;
   const totalAngle = targetAngle + extraRotations * Math.PI * 2;
 
+  const item = currentItems.find(i => i.id === selectedItemId);
+  const price = item ? item.price : 100;
+  const declared = parseInt(chanceSlider.value);
+  const realChance = calculateHiddenChance(declared, price);
+
   function animate(time) {
     const elapsed = time - startTime;
     const progress = Math.min(elapsed / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const angle = startAngle + totalAngle * eased;
+    drawWheel(realChance);
     drawArrow(angle);
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      // Определяем финальный угол (от 0 до 2PI)
       let finalAngle = angle % (Math.PI * 2);
       if (finalAngle < 0) finalAngle += Math.PI * 2;
-      // Проверяем попадание в сектор шанса
-      const chance = parseInt(chanceSlider.value);
-      // Сектор начинается с -PI/2 (12 часов) и идёт по часовой стрелке на chance%
-      const sectorStart = -Math.PI / 2;
-      const sectorEnd = sectorStart + (chance / 100) * Math.PI * 2;
-      // Приводим finalAngle к диапазону [0, 2PI)
-      // Сектор может быть от отрицательного до положительного, поэтому нормализуем
-      let normFinal = finalAngle;
-      // Переведём сектор в [0, 2PI)
-      let start = sectorStart;
-      let end = sectorEnd;
-      // Если сектор пересекает 0, разбиваем
-      // Но проще: проверяем, находится ли угол внутри сектора
-      // Нормализуем сектор в [0, 2PI)
-      while (start < 0) { start += Math.PI * 2; end += Math.PI * 2; }
-      while (start >= Math.PI * 2) { start -= Math.PI * 2; end -= Math.PI * 2; }
-      // Если end > 2PI, то сектор пересекает 0
+      const deg = finalAngle * 180 / Math.PI;
+      const sectorStartDeg = -90;
+      const sectorEndDeg = sectorStartDeg + (realChance / 100) * 360;
+
+      let normDeg = ((deg % 360) + 360) % 360;
+      let start = ((sectorStartDeg % 360) + 360) % 360;
+      let end = ((sectorEndDeg % 360) + 360) % 360;
+
       let hit = false;
-      if (end <= Math.PI * 2) {
-        // Сектор в пределах одного оборота
-        if (normFinal >= start && normFinal <= end) hit = true;
+      if (start < end) {
+        if (normDeg >= start && normDeg <= end) hit = true;
       } else {
-        // Сектор пересекает 0
-        if (normFinal >= start || normFinal <= end - Math.PI * 2) hit = true;
+        if (normDeg >= start || normDeg <= end) hit = true;
       }
+
+      console.log(`🎯 Угол: ${normDeg}°, сектор: ${start}° - ${end}°, попал: ${hit}`);
       callback(hit);
     }
   }
@@ -276,31 +260,19 @@ async function confirmUpgrade() {
   const item = currentItems.find(i => i.id === selectedItemId);
   if (!item) return;
 
-  const chosenChance = parseInt(chanceSlider.value);
-  const hiddenChance = calculateHiddenChance(chosenChance, item.price);
-  const coeff = calculateCoefficient(chosenChance);
+  const declared = parseInt(chanceSlider.value);
+  const realChance = calculateHiddenChance(declared, item.price);
+  const coeff = calculateCoefficient(declared);
 
   const btn = document.getElementById('upgradeBtn');
   btn.disabled = true;
   isSpinning = true;
   document.getElementById('modalResult').textContent = '🎲 Крутим...';
 
-  // Случайный угол остановки (0..2PI)
   const targetAngle = Math.random() * Math.PI * 2;
 
   spinWheel(targetAngle, async (hit) => {
-    // Но мы должны учесть скрытый шанс: фактически победа наступает, если hit И random < hiddenChance/100
-    // Чтобы не нарушать механику, мы сначала определяем hit по сектору, а потом дополнительно проверяем скрытый шанс
-    let actualWin = hit;
     if (hit) {
-      // Дополнительная проверка скрытого шанса
-      const extraRoll = Math.random() * 100;
-      if (extraRoll > hiddenChance) {
-        actualWin = false; // переопределяем как проигрыш
-      }
-    }
-
-    if (actualWin) {
       // ПОБЕДА
       const newLevel = Math.ceil(item.level * coeff);
       try {
@@ -315,7 +287,6 @@ async function confirmUpgrade() {
           const itemInList = currentItems.find(i => i.id === selectedItemId);
           if (itemInList) itemInList.level = newLevel;
           renderInventory(currentItems);
-          // Добавляем в историю (сервер уже записал)
           loadHistory();
         } else {
           document.getElementById('modalResult').textContent = '❌ Ошибка при обновлении';
@@ -326,13 +297,11 @@ async function confirmUpgrade() {
     } else {
       // ПРОИГРЫШ
       try {
-        // Записываем проигрыш в историю
         await fetch('/record-lose', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ itemId: selectedItemId })
         });
-        // Удаляем предмет
         const res = await fetch('/delete-item', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -354,7 +323,7 @@ async function confirmUpgrade() {
   });
 }
 
-// ===== ИСТОРИЯ (ОНЛАЙН-ЛЕНТА) =====
+// ===== ИСТОРИЯ =====
 async function loadHistory() {
   try {
     const res = await fetch('/history');
@@ -379,7 +348,7 @@ async function loadHistory() {
     });
     list.innerHTML = html;
   } catch (e) {
-    document.getElementById('historyList').innerHTML = '<span class="history-placeholder">Ошибка загрузки истории</span>';
+    document.getElementById('historyList').innerHTML = '<span class="history-placeholder">Ошибка загрузки</span>';
   }
 }
 
@@ -425,7 +394,6 @@ async function login() {
       showMessage('Добро пожаловать!', 'success');
       loadInventory();
       loadHistory();
-      // Периодическое обновление истории
       setInterval(loadHistory, 5000);
     } else {
       showMessage(data.error || 'Ошибка', 'error');
@@ -459,7 +427,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ===== ПРОВЕРКА СЕССИИ =====
+// ===== ИНИЦИАЛИЗАЦИЯ =====
 async function fetchUser() {
   try {
     const res = await fetch('/user');
@@ -479,6 +447,4 @@ async function fetchUser() {
   } catch (e) {}
 }
 fetchUser();
-
-// Инициализация круга
 updateChanceDisplay();

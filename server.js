@@ -22,25 +22,22 @@ app.use(session({
 const db = new sqlite3.Database('./database.db');
 
 db.serialize(() => {
-  // Пользователи
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT
   )`);
 
-  // Инвентарь (предметы пользователей)
   db.run(`CREATE TABLE IF NOT EXISTS inventory (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     name TEXT,
     price INTEGER,
-    rarity INTEGER, -- 1..1000
+    rarity INTEGER,
     level INTEGER DEFAULT 1,
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 
-  // Глобальный пул предметов (для генерации)
   db.run(`CREATE TABLE IF NOT EXISTS item_pool (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
@@ -48,7 +45,6 @@ db.serialize(() => {
     rarity INTEGER
   )`);
 
-  // История апгрейдов (онлайн-лента)
   db.run(`CREATE TABLE IF NOT EXISTS upgrade_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT,
@@ -93,17 +89,10 @@ function getLatestHistory(limit = 20) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ ПУЛА ПРЕДМЕТОВ (при первом запуске) =====
+// ===== ГЕНЕРАЦИЯ ПУЛА ПРЕДМЕТОВ =====
 function generateItemPool() {
   const prefixes = ['Тенистый', 'Лунный', 'Огненный', 'Ледяной', 'Кровавый', 'Золотой', 'Древний', 'Космический', 'Призрачный', 'Божественный'];
   const suffixes = ['Клинок', 'Щит', 'Амулет', 'Кольцо', 'Посох', 'Меч', 'Лук', 'Кинжал', 'Топор', 'Молот'];
-  const rarities = [];
-  for (let i = 1; i <= 1000; i++) {
-    const r = Math.floor(i / 10) + 1; // от 1 до 100
-    rarities.push(r);
-  }
-
-  // Создаём 200 уникальных предметов
   const items = [];
   for (let i = 0; i < 200; i++) {
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
@@ -113,7 +102,7 @@ function generateItemPool() {
     const base_price = Math.floor(rarity * 1.5 + Math.random() * 100);
     items.push({ name, base_price, rarity });
   }
-  // Удаляем дубликаты (по имени)
+  // Убираем дубликаты по имени
   const unique = [];
   const seen = new Set();
   for (const item of items) {
@@ -122,7 +111,6 @@ function generateItemPool() {
       unique.push(item);
     }
   }
-  // Вставляем в БД (очищаем сначала)
   db.run('DELETE FROM item_pool', (err) => {
     if (err) console.error('Ошибка очистки item_pool:', err);
     const stmt = db.prepare('INSERT INTO item_pool (name, base_price, rarity) VALUES (?, ?, ?)');
@@ -134,7 +122,7 @@ function generateItemPool() {
   });
 }
 
-// Заполняем пул при старте (если он пуст)
+// Заполняем пул при старте, если пуст
 db.get('SELECT COUNT(*) as count FROM item_pool', (err, row) => {
   if (err) console.error(err);
   else if (row.count === 0) {
@@ -143,15 +131,12 @@ db.get('SELECT COUNT(*) as count FROM item_pool', (err, row) => {
 });
 
 // ===== API =====
-
-// Получить текущего пользователя
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   res.json({ username: user.username });
 });
 
-// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -159,7 +144,7 @@ app.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], function(err) {
       if (err) return res.status(400).json({ error: 'Пользователь уже существует' });
-      // При регистрации выдаём 3 случайных предмета
+      // Выдаём 3 случайных предмета
       db.all('SELECT * FROM item_pool ORDER BY RANDOM() LIMIT 3', (err2, items) => {
         if (!err2 && items) {
           const stmt = db.prepare('INSERT INTO inventory (user_id, name, price, rarity, level) VALUES (?, ?, ?, ?, ?)');
@@ -176,7 +161,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Вход
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
@@ -188,13 +172,11 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Выход
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
 });
 
-// Получить инвентарь пользователя
 app.get('/inventory', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -202,13 +184,11 @@ app.get('/inventory', async (req, res) => {
   res.json(items);
 });
 
-// Получить историю апгрейдов (онлайн-лента)
 app.get('/history', async (req, res) => {
   const history = await getLatestHistory(20);
   res.json(history);
 });
 
-// Добавить предмет в инвентарь (для тестов, можно использовать)
 app.post('/add-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -222,7 +202,6 @@ app.post('/add-item', async (req, res) => {
     });
 });
 
-// Удалить предмет (для проигрыша)
 app.post('/delete-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -233,14 +212,12 @@ app.post('/delete-item', async (req, res) => {
   });
 });
 
-// Принудительное обновление уровня (победа)
 app.post('/force-upgrade', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   const { itemId, newLevel } = req.body;
   if (!itemId || !newLevel) return res.status(400).json({ error: 'Некорректные данные' });
 
-  // Получаем предмет
   const item = await new Promise((resolve, reject) => {
     db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], (err, row) => {
       if (err) reject(err);
@@ -250,7 +227,6 @@ app.post('/force-upgrade', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'Предмет не найден' });
 
   const oldLevel = item.level;
-  // Обновляем уровень
   await new Promise((resolve, reject) => {
     db.run('UPDATE inventory SET level = ? WHERE id = ?', [newLevel, itemId], (err) => {
       if (err) reject(err);
@@ -258,16 +234,13 @@ app.post('/force-upgrade', async (req, res) => {
     });
   });
 
-  // Записываем в историю (победа)
   db.run(
     'INSERT INTO upgrade_history (username, item_name, old_level, new_level, win) VALUES (?, ?, ?, ?, ?)',
     [user.username, item.name, oldLevel, newLevel, 1]
   );
-
   res.json({ success: true });
 });
 
-// При проигрыше тоже записываем историю
 app.post('/record-lose', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -286,11 +259,9 @@ app.post('/record-lose', async (req, res) => {
     'INSERT INTO upgrade_history (username, item_name, old_level, new_level, win) VALUES (?, ?, ?, ?, ?)',
     [user.username, item.name, item.level, item.level, 0]
   );
-
   res.json({ success: true });
 });
 
-// Получить случайные предметы для генерации (для интерфейса)
 app.get('/random-items', async (req, res) => {
   const count = parseInt(req.query.count) || 5;
   db.all('SELECT * FROM item_pool ORDER BY RANDOM() LIMIT ?', [count], (err, rows) => {
@@ -299,7 +270,6 @@ app.get('/random-items', async (req, res) => {
   });
 });
 
-// ===== ЗАПУСК =====
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Сервер запущен на http://0.0.0.0:${PORT}`);
 });
