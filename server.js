@@ -138,7 +138,6 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА =====
 function generateShopItems() {
   const items = [];
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
@@ -213,58 +212,39 @@ function generateShopItems() {
 const SHOP_ITEMS = generateShopItems();
 console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
 
-// ===== ГЕНЕРАЦИЯ АЧИВОК =====
+// ===== НОВАЯ ФУНКЦИЯ ГЕНЕРАЦИИ ЗАДАНИЙ (ВСЁ ПО 1 РАЗУ) =====
 function generateAchievements() {
   const types = [
-    { id: 'win_3', desc: 'Выиграть 3 раунда', target: 3, reward: 10 },
-    { id: 'win_5', desc: 'Выиграть 5 раундов', target: 5, reward: 20 },
-    { id: 'win_10', desc: 'Выиграть 10 раундов', target: 10, reward: 30 },
-    { id: 'win_20', desc: 'Выиграть 20 раундов', target: 20, reward: 50 },
-    { id: 'win_50', desc: 'Выиграть 50 раундов', target: 50, reward: 100 },
-    { id: 'win_100', desc: 'Выиграть 100 раундов', target: 100, reward: 200 },
-    { id: 'streak_3', desc: 'Победить 3 раза подряд', target: 3, reward: 15 },
-    { id: 'streak_5', desc: 'Победить 5 раз подряд', target: 5, reward: 25 },
-    { id: 'streak_10', desc: 'Победить 10 раз подряд', target: 10, reward: 50 },
-    { id: 'pair_5', desc: 'Выбросить пару 5 раз', target: 5, reward: 10 },
-    { id: 'pair_10', desc: 'Выбросить пару 10 раз', target: 10, reward: 20 },
-    { id: 'two_pair_3', desc: 'Выбросить две пары 3 раза', target: 3, reward: 15 },
-    { id: 'two_pair_5', desc: 'Выбросить две пары 5 раз', target: 5, reward: 25 },
-    { id: 'three_3', desc: 'Выбросить тройку 3 раза', target: 3, reward: 20 },
-    { id: 'three_5', desc: 'Выбросить тройку 5 раз', target: 5, reward: 30 },
-    { id: 'straight_2', desc: 'Выбросить стрит 2 раза', target: 2, reward: 20 },
-    { id: 'straight_5', desc: 'Выбросить стрит 5 раз', target: 5, reward: 40 },
-    { id: 'full_house_2', desc: 'Выбросить фулл-хаус 2 раза', target: 2, reward: 25 },
-    { id: 'full_house_5', desc: 'Выбросить фулл-хаус 5 раз', target: 5, reward: 50 },
-    { id: 'four_1', desc: 'Выбросить каре 1 раз', target: 1, reward: 30 },
-    { id: 'four_3', desc: 'Выбросить каре 3 раза', target: 3, reward: 60 },
-    { id: 'five_1', desc: 'Выбросить пять одинаковых 1 раз', target: 1, reward: 50 },
-    { id: 'five_3', desc: 'Выбросить пять одинаковых 3 раза', target: 3, reward: 100 },
-    { id: 'broken_straight_2', desc: 'Выбросить ломаный стрит 2 раза', target: 2, reward: 20 },
-    { id: 'broken_straight_5', desc: 'Выбросить ломаный стрит 5 раз', target: 5, reward: 40 },
-    { id: 'poker_2', desc: 'Выбросить покер 2 раза', target: 2, reward: 25 },
-    { id: 'poker_5', desc: 'Выбросить покер 5 раз', target: 5, reward: 50 },
-    { id: 'royal_1', desc: 'Выбросить рояль 1 раз', target: 1, reward: 40 },
-    { id: 'royal_3', desc: 'Выбросить рояль 3 раза', target: 3, reward: 80 },
-    { id: 'total_games_10', desc: 'Сыграть 10 раундов', target: 10, reward: 10 },
-    { id: 'total_games_25', desc: 'Сыграть 25 раундов', target: 25, reward: 20 },
-    { id: 'total_games_50', desc: 'Сыграть 50 раундов', target: 50, reward: 30 },
-    { id: 'total_games_100', desc: 'Сыграть 100 раундов', target: 100, reward: 50 },
-    { id: 'level_up_2', desc: 'Повысить уровень на 2', target: 2, reward: 20 },
-    { id: 'level_up_5', desc: 'Повысить уровень на 5', target: 5, reward: 40 },
-    { id: 'level_up_10', desc: 'Повысить уровень на 10', target: 10, reward: 60 },
+    { id: 'win', desc: 'Победить в раунде', reward: 10 },
+    { id: 'streak', desc: 'Победить 3 раза подряд', reward: 15 },
+    { id: 'pair', desc: 'Выбросить пару', reward: 5 },
+    { id: 'two_pair', desc: 'Выбросить две пары', reward: 8 },
+    { id: 'three', desc: 'Выбросить тройку', reward: 10 },
+    { id: 'straight', desc: 'Выбросить стрит', reward: 15 },
+    { id: 'full_house', desc: 'Выбросить фулл-хаус', reward: 20 },
+    { id: 'four', desc: 'Выбросить каре', reward: 25 },
+    { id: 'five', desc: 'Выбросить пять одинаковых', reward: 30 },
+    { id: 'broken_straight', desc: 'Выбросить ломаный стрит', reward: 12 },
+    { id: 'poker', desc: 'Выбросить покер', reward: 18 },
+    { id: 'royal', desc: 'Выбросить рояль', reward: 25 },
+    { id: 'total_games', desc: 'Сыграть раунд', reward: 5 },
+    { id: 'level_up', desc: 'Повысить уровень', reward: 20 },
+    { id: 'reroll', desc: 'Сделать переброс', reward: 3 }
   ];
+
   const achievements = [];
   for (let i = 0; i < 100; i++) {
     const base = types[i % types.length];
-    const multiplier = Math.floor(i / types.length) + 1;
-    const newTarget = base.target * multiplier;
-    const newReward = Math.floor(base.reward * multiplier * 0.8);
+    const variant = Math.floor(i / types.length);
+    let target = 1;
+    if (base.id === 'streak') target = 3;
+    const reward = Math.floor(base.reward + variant * 2);
     achievements.push({
       id: `${base.id}_${i}`,
-      desc: `${base.desc} (${newTarget} раз)`,
-      target: newTarget,
-      reward: newReward,
-      type: base.id.split('_')[0]
+      desc: base.desc,
+      target: target,
+      reward: reward,
+      type: base.id
     });
   }
   return achievements;
