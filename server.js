@@ -69,12 +69,14 @@ db.serialize(() => {
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // ===== ИСПРАВЛЕНИЕ: добавляем колонку target =====
   db.run(`CREATE TABLE IF NOT EXISTS daily_quests (
     user_id INTEGER,
     quest_id INTEGER,
     progress INTEGER DEFAULT 0,
     completed INTEGER DEFAULT 0,
     date DATE,
+    target INTEGER DEFAULT 1,
     PRIMARY KEY (user_id, quest_id)
   )`);
 
@@ -216,7 +218,6 @@ console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предмет�
 // ===== ГЕНЕРАЦИЯ ЛЁГКИХ ЗАДАНИЙ =====
 function generateAchievements() {
   const achievements = [];
-  // Комбинации – достаточно 1 раза
   const comboTypes = [
     { id: 'pair', desc: 'Выбросить пару', target: 1, reward: 10 },
     { id: 'two_pair', desc: 'Выбросить две пары', target: 1, reward: 15 },
@@ -238,7 +239,6 @@ function generateAchievements() {
       type: combo.id
     });
   }
-  // Победы – 1, 2, 3 раза
   const winTargets = [1, 2, 3];
   for (const t of winTargets) {
     achievements.push({
@@ -249,7 +249,6 @@ function generateAchievements() {
       type: 'win'
     });
   }
-  // Стрики – 1, 2, 3 раза подряд
   const streakTargets = [1, 2, 3];
   for (const t of streakTargets) {
     achievements.push({
@@ -260,7 +259,6 @@ function generateAchievements() {
       type: 'streak'
     });
   }
-  // Общее количество игр – 1, 3, 5
   const gameTargets = [1, 3, 5];
   for (const t of gameTargets) {
     achievements.push({
@@ -271,7 +269,6 @@ function generateAchievements() {
       type: 'total_games'
     });
   }
-  // Повышение уровня – 1, 2, 3
   const levelTargets = [1, 2, 3];
   for (const t of levelTargets) {
     achievements.push({
@@ -400,8 +397,9 @@ app.post('/register', async (req, res) => {
       const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, 5);
       for (const ach of selected) {
-        db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date) VALUES (?, ?, 0, 0, ?)',
-          [this.lastID, ach.id, today]);
+        // ===== ИСПРАВЛЕНИЕ: сохраняем target =====
+        db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date, target) VALUES (?, ?, 0, 0, ?, ?)',
+          [this.lastID, ach.id, today, ach.target]);
       }
       res.json({ success: true });
     });
@@ -442,8 +440,8 @@ app.get('/quests', async (req, res) => {
     const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 5);
     for (const ach of selected) {
-      db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date) VALUES (?, ?, 0, 0, ?)',
-        [user.id, ach.id, today]);
+      db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date, target) VALUES (?, ?, 0, 0, ?, ?)',
+        [user.id, ach.id, today, ach.target]);
     }
     db.run('UPDATE player_data SET last_visit = ? WHERE user_id = ?', [today, user.id]);
   }
@@ -459,7 +457,7 @@ app.get('/quests', async (req, res) => {
       ...row,
       desc: def ? def.desc : 'Задание',
       reward: def ? def.reward : 10,
-      target: def ? def.target : 1
+      target: row.target // теперь target есть в таблице
     };
   });
   res.json(fullQuests);
@@ -474,10 +472,12 @@ app.post('/quest-progress', async (req, res) => {
     [increment || 1, user.id, questId],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
+      // ===== ИСПРАВЛЕНИЕ: теперь target доступен в таблице =====
       db.get(
         'SELECT progress, target FROM daily_quests WHERE user_id = ? AND quest_id = ?',
         [user.id, questId],
         (err2, row) => {
+          if (err2) return res.status(500).json({ error: 'Ошибка БД' });
           if (row && row.progress >= row.target) {
             db.run('UPDATE daily_quests SET completed = 1 WHERE user_id = ? AND quest_id = ?', [user.id, questId]);
             const def = ALL_ACHIEVEMENTS.find(a => a.id === questId);
@@ -492,15 +492,6 @@ app.post('/quest-progress', async (req, res) => {
       );
     }
   );
-});
-
-// ===== ЭНДПОИНТ ДЛЯ СБОРА НАГРАД (опционально) =====
-app.post('/claim-rewards', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  // Просто возвращаем актуальное количество монет
-  const data = await getPlayerData(user.id);
-  res.json({ coins: data ? data.coins : 0 });
 });
 
 app.get('/leaderboard', (req, res) => {
