@@ -1,7 +1,7 @@
 {
   "name": "dice-of-kalma",
   "version": "1.0.0",
-  "description": "Dice of Kalma — веб-версия",
+  "description": "Dice of Kalma with new features",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

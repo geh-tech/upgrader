@@ -11,14 +11,51 @@
 </head>
 <body>
 
-<!-- Контейнер для частиц и вспышек -->
+<!-- Частицы и вспышка -->
 <div id="particlesContainer"></div>
 <div id="flashOverlay"></div>
 
+<!-- Боковые панели -->
+<div id="leaderboardPanel" class="slide-panel left">
+  <div class="panel-header">
+    <h2>🏆 Лидерборд</h2>
+    <button class="close-panel" onclick="togglePanel('leaderboard')">✕</button>
+  </div>
+  <div id="leaderboardList"></div>
+</div>
+
+<div id="chatPanel" class="slide-panel right">
+  <div class="panel-header">
+    <h2>💬 Чат</h2>
+    <button class="close-panel" onclick="togglePanel('chat')">✕</button>
+  </div>
+  <div id="chatMessages" class="chat-messages"></div>
+  <div class="chat-input">
+    <input type="text" id="chatInput" placeholder="Сообщение..." maxlength="200" />
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+</div>
+
+<div id="questsPanel" class="slide-panel right" style="right: -400px;">
+  <div class="panel-header">
+    <h2>📋 Задания</h2>
+    <button class="close-panel" onclick="togglePanel('quests')">✕</button>
+  </div>
+  <div id="questsList"></div>
+</div>
+
+<!-- Основной контейнер -->
 <div class="container">
   <div class="header">
     <h1>🎲 Dice of Kalma</h1>
     <p class="subtitle">Брось кубики, собери комбинацию, победи лимит</p>
+  </div>
+
+  <!-- Верхняя панель с кнопками -->
+  <div class="top-bar">
+    <button class="top-btn" onclick="togglePanel('leaderboard')">🏆</button>
+    <button class="top-btn" onclick="togglePanel('quests')">📋</button>
+    <button class="top-btn" onclick="togglePanel('chat')">💬</button>
   </div>
 
   <!-- Авторизация -->
@@ -36,7 +73,7 @@
       <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
 
-    <!-- Прогресс (уровень и лимит) -->
+    <!-- Прогресс -->
     <div class="progress-bar">
       <div class="progress-item">
         <span class="progress-label">Уровень</span>
@@ -48,7 +85,7 @@
       </div>
     </div>
 
-    <!-- Статус (кость, множ, итог) -->
+    <!-- Статус -->
     <div class="status-bar">
       <div class="status-item">
         <span class="label">Кость</span>
@@ -96,6 +133,33 @@
   </div>
 
   <div id="message" class="error-msg"></div>
+</div>
+
+<!-- Модалка обучения -->
+<div id="tutorialModal" class="modal">
+  <div class="modal-content tutorial-content">
+    <h2>🎓 Добро пожаловать в Dice of Kalma!</h2>
+    <div class="tutorial-steps">
+      <p>1. <strong>Бросьте кубики</strong> – они выпадут случайно.</p>
+      <p>2. <strong>Выберите кубики</strong> (кликните на них) и нажмите «Переброс», чтобы улучшить результат (до 3 раз).</p>
+      <p>3. Нажмите <strong>«Играть руку»</strong>, чтобы зафиксировать результат.</p>
+      <p>4. Ваша <strong>кость</strong> – сумма всех кубиков. <strong>Множитель</strong> зависит от комбинации.</p>
+      <p>5. Цель – набрать <strong>итог ≥ лимит</strong>. Победа повышает уровень и лимит.</p>
+      <p>6. За победу вы получаете <strong>улучшение</strong> (выберите из трёх).</p>
+      <p>7. Собирайте улучшения, они дают мощные бонусы!</p>
+      <p>8. Слева/справа – <strong>лидерборд, задания и чат</strong>.</p>
+    </div>
+    <button onclick="closeTutorial()" class="upgrade-select-btn">Начать игру!</button>
+  </div>
+</div>
+
+<!-- Модалка улучшений (используется в client.js) -->
+<div id="upgradeModal" class="modal" style="display:none;">
+  <div class="modal-content upgrade-modal-content">
+    <h2>⬆ УРОВЕНЬ <span id="upgradeLevel"></span>!</h2>
+    <p class="upgrade-subtitle">Выберите улучшение:</p>
+    <div id="upgradeOptions" class="upgrade-options"></div>
+  </div>
 </div>
 
 <script src="client.js"></script>

@@ -11,8 +11,24 @@ let isRolling = false;
 let hasRolled = false;
 let roundActive = false;
 let currentHandType = 'high';
+let stats = {
+  total_wins: 0,
+  total_games: 0,
+  current_streak: 0,
+  best_streak: 0,
+  pair_count: 0,
+  two_pair_count: 0,
+  three_count: 0,
+  straight_count: 0,
+  full_house_count: 0,
+  four_count: 0,
+  five_count: 0,
+  broken_straight_count: 0,
+  poker_count: 0,
+  royal_count: 0
+};
 
-// ===== БАЗОВЫЕ МНОЖИТЕЛИ =====
+// ===== БАЗОВЫЕ МНОЖИТЕЛИ (НОВЫЕ) =====
 const BASE_MULTIPLIERS = {
   high: 1,
   pair: 2,
@@ -21,10 +37,13 @@ const BASE_MULTIPLIERS = {
   straight: 5,
   fullHouse: 6,
   four: 8,
-  five: 12
+  five: 12,
+  brokenStraight: 4,
+  poker: 5,
+  royal: 6
 };
 
-// ===== ПРОКАЧКИ =====
+// ===== ПРОКАЧКИ (С НОВЫМИ ТИПАМИ) =====
 let handUpgrades = {
   high: 0,
   pair: 0,
@@ -33,7 +52,10 @@ let handUpgrades = {
   straight: 0,
   fullHouse: 0,
   four: 0,
-  five: 0
+  five: 0,
+  brokenStraight: 0,
+  poker: 0,
+  royal: 0
 };
 
 let passiveBonuses = {
@@ -46,10 +68,10 @@ let passiveBonuses = {
   extra_level: 0
 };
 
-// ===== ГЕНЕРАЦИЯ УЛУЧШЕНИЙ =====
+// ===== ГЕНЕРАЦИЯ ВСЕХ УЛУЧШЕНИЙ (260+) =====
 function generateAllUpgrades() {
   const upgrades = [];
-  const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five'];
+  const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
   const handNames = {
     high: 'Старшая карта',
     pair: 'Пара',
@@ -58,7 +80,10 @@ function generateAllUpgrades() {
     straight: 'Стрит',
     fullHouse: 'Фулл-хаус',
     four: 'Каре',
-    five: 'Пять одинаковых'
+    five: 'Пять одинаковых',
+    brokenStraight: 'Ломаный стрит',
+    poker: 'Покер',
+    royal: 'Рояль'
   };
   for (let level = 1; level <= 10; level++) {
     const bonus = level;
@@ -74,6 +99,7 @@ function generateAllUpgrades() {
     }
   }
 
+  // Пассивные бонусы (черепа)
   for (let i = 1; i <= 6; i++) {
     const val = i * 5;
     upgrades.push({
@@ -158,20 +184,16 @@ function generateAllUpgrades() {
 }
 
 const ALL_UPGRADES = generateAllUpgrades();
-console.log(`✅ Сгенерировано ${ALL_UPGRADES.length} улучшений`);
 
+// ===== ЭМОДЗИ ДЛЯ КУБИКОВ =====
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const diceElements = document.querySelectorAll('.dice');
 
-// ===== ЗВУКИ (Web Audio API) =====
+// ===== ЗВУКИ =====
 let audioCtx = null;
-
 function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
-
 function playSound(type) {
   try {
     initAudio();
@@ -181,7 +203,6 @@ function playSound(type) {
     gainNode.connect(audioCtx.destination);
     oscillator.type = 'sine';
     gainNode.gain.value = 0.15;
-
     switch (type) {
       case 'click':
         oscillator.frequency.value = 800;
@@ -222,9 +243,7 @@ function playSound(type) {
       default:
         break;
     }
-  } catch (e) {
-    // Подавляем ошибки звука
-  }
+  } catch (e) {}
 }
 
 // ===== ЧАСТИЦЫ =====
@@ -241,8 +260,8 @@ function createParticles(x, y, count, color, spread) {
     particle.style.width = size + 'px';
     particle.style.height = size + 'px';
     particle.style.background = color;
-    particle.style.left = (x - size/2) + 'px';
-    particle.style.top = (y - size/2) + 'px';
+    particle.style.left = (x - size / 2) + 'px';
+    particle.style.top = (y - size / 2) + 'px';
     particle.style.setProperty('--tx', tx + 'px');
     particle.style.setProperty('--ty', ty + 'px');
     particle.style.animationDuration = (Math.random() * 0.6 + 0.4) + 's';
@@ -250,7 +269,6 @@ function createParticles(x, y, count, color, spread) {
     setTimeout(() => particle.remove(), 1200);
   }
 }
-
 function spawnWinParticles() {
   const rect = document.getElementById('resultMessage').getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -258,7 +276,6 @@ function spawnWinParticles() {
   createParticles(cx, cy, 40, '#69db7c', 300);
   createParticles(cx - 50, cy - 30, 20, '#ffd700', 200);
 }
-
 function spawnLoseParticles() {
   const rect = document.getElementById('resultMessage').getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
@@ -266,7 +283,6 @@ function spawnLoseParticles() {
   createParticles(cx, cy, 30, '#ff6b6b', 250);
   createParticles(cx + 40, cy - 20, 15, '#ff4444', 180);
 }
-
 function spawnUpgradeParticles() {
   const container = document.querySelector('.upgrade-modal-content');
   if (!container) return;
@@ -281,13 +297,12 @@ function spawnUpgradeParticles() {
 function flashOverlay(type) {
   const overlay = document.getElementById('flashOverlay');
   overlay.className = '';
-  // Триггер перерисовки
   void overlay.offsetWidth;
   overlay.className = type === 'win' ? 'flash-win' : 'flash-lose';
   setTimeout(() => { overlay.className = ''; }, 900);
 }
 
-// ===== DICE CLICK =====
+// ===== КЛИК ПО КУБИКАМ =====
 diceElements.forEach((el, i) => {
   el.addEventListener('click', () => {
     if (!hasRolled || isRolling || !roundActive) return;
@@ -299,21 +314,60 @@ diceElements.forEach((el, i) => {
   });
 });
 
-// ===== СБРОС ИГРЫ =====
+// ===== ОПРЕДЕЛЕНИЕ КОМБИНАЦИЙ (С НОВЫМИ) =====
+function getHandType(diceValues) {
+  const counts = {};
+  for (const val of diceValues) counts[val] = (counts[val] || 0) + 1;
+  const sorted = Object.values(counts).sort((a, b) => b - a);
+  const sortedVals = [...diceValues].sort((a, b) => a - b);
+  const isStraight = sortedVals.every((v, i) => i === 0 || v === sortedVals[i - 1] + 1);
+  const isBrokenStraight = (sortedVals.join(',') === '1,2,3,4,6' || sortedVals.join(',') === '1,3,4,5,6');
+  const isRoyal = (sortedVals.join(',') === '1,2,3,4,5' || sortedVals.join(',') === '2,3,4,5,6');
+
+  if (isRoyal) return 'royal';
+  if (isBrokenStraight) return 'brokenStraight';
+  if (sorted[0] === 5) return 'five';
+  if (sorted[0] === 4) return 'four';
+  if (sorted[0] === 3 && sorted[1] === 2) return 'fullHouse';
+  if (isStraight) return 'straight';
+  if (sorted[0] === 3) return 'three';
+  // poker: две пары + одиночка (это то же, что и twoPair, но выделим отдельно)
+  if (sorted[0] === 2 && sorted[1] === 2) return 'poker'; // теперь две пары считаются poker
+  if (sorted[0] === 2) return 'pair';
+  return 'high';
+}
+
+function getHandName(type) {
+  const names = {
+    high: 'Старшая карта',
+    pair: 'Пара',
+    twoPair: 'Две пары',
+    three: 'Тройка',
+    straight: 'Стрит',
+    fullHouse: 'Фулл-хаус',
+    four: 'Каре',
+    five: 'Пять одинаковых',
+    brokenStraight: 'Ломаный стрит',
+    poker: 'Покер',
+    royal: 'Рояль'
+  };
+  return names[type] || type;
+}
+
+// ===== СБРОС ИГРЫ (ПРИ ПОРАЖЕНИИ) =====
 function resetGame() {
   level = 1;
   limit = 50;
   inventory = [];
-  handUpgrades = { high: 0, pair: 0, twoPair: 0, three: 0, straight: 0, fullHouse: 0, four: 0, five: 0 };
+  handUpgrades = { high: 0, pair: 0, twoPair: 0, three: 0, straight: 0, fullHouse: 0, four: 0, five: 0, brokenStraight: 0, poker: 0, royal: 0 };
   passiveBonuses = { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+  stats = { total_wins: 0, total_games: 0, current_streak: 0, best_streak: 0, pair_count: 0, two_pair_count: 0, three_count: 0, straight_count: 0, full_house_count: 0, four_count: 0, five_count: 0, broken_straight_count: 0, poker_count: 0, royal_count: 0 };
   document.getElementById('levelDisplay').textContent = level;
   document.getElementById('limitDisplay').textContent = limit;
   renderInventory();
   saveProgress();
   roundActive = false;
-  setTimeout(() => {
-    startRound();
-  }, 500);
+  setTimeout(() => startRound(), 500);
 }
 
 // ===== ИГРОВЫЕ ФУНКЦИИ =====
@@ -378,10 +432,7 @@ function rerollSelected() {
   updateStats();
   updateRerollDisplay();
   document.getElementById('rerollBtn').disabled = true;
-
-  if (rerollsLeft <= 0) {
-    document.getElementById('rerollBtn').disabled = true;
-  }
+  if (rerollsLeft <= 0) document.getElementById('rerollBtn').disabled = true;
 }
 
 function playHand() {
@@ -396,19 +447,15 @@ function playHand() {
   document.getElementById('rerollBtn').disabled = true;
   playSound('click');
 
-  // Рассчёт
+  // Расчёт кости и множителя
   let bone = dice.reduce((a, b) => a + b, 0) + (passiveBonuses.bones || 0);
-  if (passiveBonuses.combo_bones_mult) {
-    bone += passiveBonuses.combo_bones_mult.bones || 0;
-  }
+  if (passiveBonuses.combo_bones_mult) bone += passiveBonuses.combo_bones_mult.bones || 0;
   const handType = getHandType(dice);
   currentHandType = handType;
   const baseMultiplier = BASE_MULTIPLIERS[handType] || 1;
   let upgradeBonus = handUpgrades[handType] || 0;
   let multBonus = passiveBonuses.mult || 0;
-  if (passiveBonuses.combo_bones_mult) {
-    multBonus += passiveBonuses.combo_bones_mult.mult || 0;
-  }
+  if (passiveBonuses.combo_bones_mult) multBonus += passiveBonuses.combo_bones_mult.mult || 0;
   const multiplier = baseMultiplier + upgradeBonus + multBonus;
   const total = Math.floor(bone * multiplier);
 
@@ -422,20 +469,23 @@ function playHand() {
     limit = Math.floor(limit * 1.3);
     resultEl.className = 'result win';
     resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${oldLimit} → ${limit})`;
-
     if (passiveBonuses.extra_level) {
       const extra = passiveBonuses.extra_level;
       level += extra;
       showMessage(`✨ Дополнительный +${extra} уровень!`, 'success');
     }
-
     document.getElementById('levelDisplay').textContent = level;
     document.getElementById('limitDisplay').textContent = limit;
 
-    // Эффекты победы
+    // Эффекты
     playSound('win');
     flashOverlay('win');
     spawnWinParticles();
+
+    // Обновляем статистику
+    updateStatsAfterGame(handType, true);
+    // Проверяем задания
+    checkQuestProgress(handType, true);
 
     saveProgress();
     showUpgradeModal();
@@ -446,12 +496,14 @@ function playHand() {
     playSound('lose');
     flashOverlay('lose');
     spawnLoseParticles();
+
+    updateStatsAfterGame(handType, false);
+    checkQuestProgress(handType, false);
     resetGame();
   }
 
   handsLeft--;
   updateHandsDisplay();
-
   if (handsLeft <= 0 && !isWin) {
     roundActive = false;
     document.getElementById('playBtn').disabled = true;
@@ -459,32 +511,85 @@ function playHand() {
   }
 }
 
-// ===== УЛУЧШЕНИЯ =====
+// ===== СТАТИСТИКА =====
+function updateStatsAfterGame(handType, win) {
+  stats.total_games++;
+  if (win) {
+    stats.total_wins++;
+    stats.current_streak++;
+    if (stats.current_streak > stats.best_streak) stats.best_streak = stats.current_streak;
+  } else {
+    stats.current_streak = 0;
+  }
+  switch (handType) {
+    case 'pair': stats.pair_count++; break;
+    case 'twoPair': stats.two_pair_count++; break;
+    case 'three': stats.three_count++; break;
+    case 'straight': stats.straight_count++; break;
+    case 'fullHouse': stats.full_house_count++; break;
+    case 'four': stats.four_count++; break;
+    case 'five': stats.five_count++; break;
+    case 'brokenStraight': stats.broken_straight_count++; break;
+    case 'poker': stats.poker_count++; break;
+    case 'royal': stats.royal_count++; break;
+    default: break;
+  }
+  saveProgress();
+}
 
+// ===== ЗАДАНИЯ =====
+function checkQuestProgress(handType, win) {
+  fetch('/quests')
+    .then(res => res.json())
+    .then(quests => {
+      quests.forEach(q => {
+        if (q.completed) return;
+        let increment = 0;
+        const type = q.quest_id.split('_')[0];
+        switch (type) {
+          case 'win': if (win) increment = 1; break;
+          case 'streak': increment = stats.current_streak; break;
+          case 'pair': if (handType === 'pair') increment = 1; break;
+          case 'two_pair': if (handType === 'twoPair') increment = 1; break;
+          case 'three': if (handType === 'three') increment = 1; break;
+          case 'straight': if (handType === 'straight') increment = 1; break;
+          case 'full_house': if (handType === 'fullHouse') increment = 1; break;
+          case 'four': if (handType === 'four') increment = 1; break;
+          case 'five': if (handType === 'five') increment = 1; break;
+          case 'broken_straight': if (handType === 'brokenStraight') increment = 1; break;
+          case 'poker': if (handType === 'poker' || handType === 'twoPair') increment = 1; break;
+          case 'royal': if (handType === 'royal') increment = 1; break;
+          case 'total_games': increment = 1; break;
+          case 'level_up': break;
+          default: break;
+        }
+        if (increment > 0) {
+          fetch('/quest-progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questId: q.quest_id, increment })
+          });
+        }
+      });
+    });
+}
+
+// ===== УЛУЧШЕНИЯ (МОДАЛКА) =====
 function showUpgradeModal() {
   const shuffled = [...ALL_UPGRADES].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, 3);
-
-  const modal = document.createElement('div');
-  modal.className = 'upgrade-modal';
-  modal.innerHTML = `
-    <div class="upgrade-modal-content">
-      <h2>⬆ УРОВЕНЬ ${level}!</h2>
-      <p class="upgrade-subtitle">Выберите улучшение:</p>
-      <div class="upgrade-options">
-        ${selected.map((upgrade, index) => `
-          <div class="upgrade-option" data-index="${index}">
-            <div class="upgrade-name">${upgrade.name}</div>
-            <div class="upgrade-desc">${upgrade.desc}</div>
-            <button class="upgrade-select-btn" onclick="applyUpgrade(${index})">Выбрать</button>
-          </div>
-        `).join('')}
-      </div>
+  const modal = document.getElementById('upgradeModal');
+  document.getElementById('upgradeLevel').textContent = level;
+  const container = document.getElementById('upgradeOptions');
+  container.innerHTML = selected.map((upgrade, index) => `
+    <div class="upgrade-option" data-index="${index}">
+      <div class="upgrade-name">${upgrade.name}</div>
+      <div class="upgrade-desc">${upgrade.desc}</div>
+      <button class="upgrade-select-btn" onclick="applyUpgrade(${index})">Выбрать</button>
     </div>
-  `;
-  document.body.appendChild(modal);
+  `).join('');
   window._currentUpgrades = selected;
-  // Звук и частицы при открытии
+  modal.style.display = 'flex';
   playSound('upgrade');
   setTimeout(spawnUpgradeParticles, 300);
 }
@@ -529,52 +634,12 @@ function applyUpgrade(index) {
   inventory.push(inventoryItem);
   renderInventory();
 
-  // Эффект выбора
   playSound('upgrade');
   spawnUpgradeParticles();
 
-  const modal = document.querySelector('.upgrade-modal');
-  if (modal) modal.remove();
-
+  document.getElementById('upgradeModal').style.display = 'none';
   saveProgress();
-  setTimeout(() => {
-    startRound();
-  }, 500);
-}
-
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-
-function getHandType(diceValues) {
-  const counts = {};
-  for (const val of diceValues) {
-    counts[val] = (counts[val] || 0) + 1;
-  }
-  const sorted = Object.values(counts).sort((a, b) => b - a);
-  const sortedVals = [...diceValues].sort((a, b) => a - b);
-  const isStraight = sortedVals.every((v, i) => i === 0 || v === sortedVals[i-1] + 1);
-
-  if (sorted[0] === 5) return 'five';
-  if (sorted[0] === 4) return 'four';
-  if (sorted[0] === 3 && sorted[1] === 2) return 'fullHouse';
-  if (isStraight) return 'straight';
-  if (sorted[0] === 3) return 'three';
-  if (sorted[0] === 2 && sorted[1] === 2) return 'twoPair';
-  if (sorted[0] === 2) return 'pair';
-  return 'high';
-}
-
-function getHandName(type) {
-  const names = {
-    high: 'Старшая карта',
-    pair: 'Пара',
-    twoPair: 'Две пары',
-    three: 'Тройка',
-    straight: 'Стрит',
-    fullHouse: 'Фулл-хаус',
-    four: 'Каре',
-    five: 'Пять одинаковых'
-  };
-  return names[type] || type;
+  setTimeout(() => startRound(), 500);
 }
 
 // ===== ОТОБРАЖЕНИЕ =====
@@ -596,17 +661,13 @@ function updateDiceDisplay(animate = false) {
 
 function updateStats() {
   let bone = dice.reduce((a, b) => a + b, 0) + (passiveBonuses.bones || 0);
-  if (passiveBonuses.combo_bones_mult) {
-    bone += passiveBonuses.combo_bones_mult.bones || 0;
-  }
+  if (passiveBonuses.combo_bones_mult) bone += passiveBonuses.combo_bones_mult.bones || 0;
   const handType = getHandType(dice);
   currentHandType = handType;
   const baseMultiplier = BASE_MULTIPLIERS[handType] || 1;
   let upgradeBonus = handUpgrades[handType] || 0;
   let multBonus = passiveBonuses.mult || 0;
-  if (passiveBonuses.combo_bones_mult) {
-    multBonus += passiveBonuses.combo_bones_mult.mult || 0;
-  }
+  if (passiveBonuses.combo_bones_mult) multBonus += passiveBonuses.combo_bones_mult.mult || 0;
   const multiplier = baseMultiplier + upgradeBonus + multBonus;
   const total = Math.floor(bone * multiplier);
   document.getElementById('boneDisplay').textContent = bone;
@@ -672,7 +733,8 @@ async function saveProgress() {
         limit_score: limit,
         inventory,
         hand_upgrades: handUpgrades,
-        passive_bonuses: passiveBonuses
+        passive_bonuses: passiveBonuses,
+        stats
       })
     });
   } catch (e) {
@@ -680,8 +742,98 @@ async function saveProgress() {
   }
 }
 
-// ===== АВТОРИЗАЦИЯ =====
+// ===== ЛИДЕРБОРД, ЧАТ, ЗАДАНИЯ =====
+function loadLeaderboard() {
+  fetch('/leaderboard')
+    .then(res => res.json())
+    .then(data => {
+      const list = document.getElementById('leaderboardList');
+      list.innerHTML = data.map((entry, idx) => `
+        <div class="leaderboard-entry">
+          <span class="rank">#${idx + 1}</span>
+          <span class="name">${escapeHtml(entry.username)}</span>
+          <span class="level">Ур. ${entry.level}</span>
+        </div>
+      `).join('');
+    });
+}
 
+function loadChat() {
+  fetch('/chat')
+    .then(res => res.json())
+    .then(messages => {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = messages.map(msg => `
+        <div class="chat-message">
+          <span class="sender">${escapeHtml(msg.username)}</span>
+          <span class="time">${new Date(msg.timestamp).toLocaleTimeString()}</span><br>
+          ${escapeHtml(msg.message)}
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    });
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  fetch('/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text })
+  }).then(() => {
+    input.value = '';
+    loadChat();
+  });
+}
+
+function loadQuests() {
+  fetch('/quests')
+    .then(res => res.json())
+    .then(quests => {
+      const container = document.getElementById('questsList');
+      container.innerHTML = quests.map(q => `
+        <div class="quest-item ${q.completed ? 'completed' : ''}">
+          <div class="desc">${q.desc}</div>
+          <div class="progress">
+            <div class="progress-bar" style="width: ${Math.min(100, (q.progress / q.target) * 100)}%"></div>
+          </div>
+          <div class="reward">🎁 ${q.reward}</div>
+        </div>
+      `).join('');
+    });
+}
+
+// ===== ПАНЕЛИ (слайдеры) =====
+function togglePanel(type) {
+  const panels = {
+    leaderboard: document.getElementById('leaderboardPanel'),
+    chat: document.getElementById('chatPanel'),
+    quests: document.getElementById('questsPanel')
+  };
+  const panel = panels[type];
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+  } else {
+    Object.values(panels).forEach(p => p.classList.remove('open'));
+    panel.classList.add('open');
+    if (type === 'leaderboard') loadLeaderboard();
+    if (type === 'chat') loadChat();
+    if (type === 'quests') loadQuests();
+  }
+}
+
+// ===== ОБУЧЕНИЕ =====
+function showTutorial() {
+  document.getElementById('tutorialModal').classList.add('active');
+}
+function closeTutorial() {
+  document.getElementById('tutorialModal').classList.remove('active');
+  fetch('/tutorial-shown', { method: 'POST' });
+}
+
+// ===== АВТОРИЗАЦИЯ =====
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -738,7 +890,6 @@ async function logout() {
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ =====
-
 async function loadGameData() {
   try {
     const res = await fetch('/user');
@@ -748,14 +899,18 @@ async function loadGameData() {
       limit = data.limit_score || 50;
       inventory = data.inventory || [];
       handUpgrades = data.hand_upgrades || {
-        high: 0, pair: 0, twoPair: 0, three: 0,
-        straight: 0, fullHouse: 0, four: 0, five: 0
+        high: 0, pair: 0, twoPair: 0, three: 0, straight: 0,
+        fullHouse: 0, four: 0, five: 0, brokenStraight: 0, poker: 0, royal: 0
       };
       passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+      stats = data.stats || stats;
       document.getElementById('levelDisplay').textContent = level;
       document.getElementById('limitDisplay').textContent = limit;
       renderInventory();
+      if (!data.tutorial_shown) showTutorial();
       startRound();
+      setInterval(loadChat, 5000);
+      setInterval(loadQuests, 15000);
     }
   } catch (e) {
     showMessage('Ошибка загрузки данных', 'error');
@@ -763,7 +918,6 @@ async function loadGameData() {
 }
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
-
 function showMessage(text, type) {
   const el = document.getElementById('message');
   el.textContent = text;
@@ -778,7 +932,6 @@ function escapeHtml(str) {
 }
 
 // ===== ПРОВЕРКА СЕССИИ =====
-
 async function fetchUser() {
   try {
     const res = await fetch('/user');
@@ -793,14 +946,18 @@ async function fetchUser() {
         limit = data.limit_score || 50;
         inventory = data.inventory || [];
         handUpgrades = data.hand_upgrades || {
-          high: 0, pair: 0, twoPair: 0, three: 0,
-          straight: 0, fullHouse: 0, four: 0, five: 0
+          high: 0, pair: 0, twoPair: 0, three: 0, straight: 0,
+          fullHouse: 0, four: 0, five: 0, brokenStraight: 0, poker: 0, royal: 0
         };
         passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+        stats = data.stats || stats;
         document.getElementById('levelDisplay').textContent = level;
         document.getElementById('limitDisplay').textContent = limit;
         renderInventory();
+        if (!data.tutorial_shown) showTutorial();
         startRound();
+        setInterval(loadChat, 5000);
+        setInterval(loadQuests, 15000);
       }
     }
   } catch (e) {}
