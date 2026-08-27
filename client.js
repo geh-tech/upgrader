@@ -10,6 +10,7 @@ let rerollsLeft = 3;
 let handsLeft = 3;
 let isRolling = false;
 let hasRolled = false;
+let roundActive = false;
 
 // Эмодзи для кубиков
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
@@ -19,82 +20,76 @@ const diceElements = document.querySelectorAll('.dice');
 
 diceElements.forEach((el, i) => {
   el.addEventListener('click', () => {
-    if (!hasRolled || isRolling) return;
+    if (!hasRolled || isRolling || !roundActive) return;
     if (lockedDice[i]) return;
     selectedDice[i] = !selectedDice[i];
     el.classList.toggle('selected');
+    // Если хотя бы один выбран, активируем кнопку переброса
+    const anySelected = selectedDice.some(v => v);
+    document.getElementById('rerollBtn').disabled = !anySelected || rerollsLeft <= 0;
   });
 });
 
 // ===== ИГРОВЫЕ ФУНКЦИИ =====
 
-// Бросок кубиков
-function rollDice() {
-  if (isRolling) return;
-  if (rerollsLeft <= 0 && hasRolled) {
-    showMessage('У вас закончились перебросы!', 'error');
-    return;
+// Начать новый раунд (автоматический бросок)
+function startRound() {
+  roundActive = true;
+  hasRolled = true;
+  rerollsLeft = 3;
+  handsLeft = 3;
+  lockedDice = [false, false, false, false, false];
+  selectedDice = [false, false, false, false, false];
+  diceElements.forEach(el => {
+    el.classList.remove('selected', 'locked');
+  });
+
+  // Первый бросок всех кубиков
+  for (let i = 0; i < 5; i++) {
+    dice[i] = Math.floor(Math.random() * 6) + 1;
   }
-
-  isRolling = true;
-  document.getElementById('rollBtn').disabled = true;
-
-  // Если первый бросок или переброс
-  if (!hasRolled) {
-    // Первый бросок — все кубики новые
-    for (let i = 0; i < 5; i++) {
-      if (!lockedDice[i]) {
-        dice[i] = Math.floor(Math.random() * 6) + 1;
-      }
-    }
-    hasRolled = true;
-    rerollsLeft = 3;
-    handsLeft = 3;
-    document.getElementById('rerollBtn').disabled = false;
-    document.getElementById('playBtn').disabled = false;
-    updateRerollDisplay();
-    updateHandsDisplay();
-  } else {
-    // Переброс — только выбранные
-    let anySelected = false;
-    for (let i = 0; i < 5; i++) {
-      if (selectedDice[i] && !lockedDice[i]) {
-        dice[i] = Math.floor(Math.random() * 6) + 1;
-        anySelected = true;
-        selectedDice[i] = false;
-        diceElements[i].classList.remove('selected');
-      }
-    }
-    if (!anySelected) {
-      showMessage('Выберите кубики для переброса!', 'error');
-      isRolling = false;
-      document.getElementById('rollBtn').disabled = false;
-      return;
-    }
-    rerollsLeft--;
-    updateRerollDisplay();
-    if (rerollsLeft <= 0) {
-      document.getElementById('rerollBtn').disabled = true;
-    }
-  }
-
-  // Обновить отображение
   updateDiceDisplay();
   updateStats();
-
-  isRolling = false;
-  document.getElementById('rollBtn').disabled = false;
-  document.getElementById('rerollBtn').disabled = (rerollsLeft <= 0 || !hasRolled);
+  updateRerollDisplay();
+  updateHandsDisplay();
+  document.getElementById('rerollBtn').disabled = true;
   document.getElementById('playBtn').disabled = false;
+  document.getElementById('resultMessage').textContent = '';
+  document.getElementById('resultMessage').className = 'result';
 }
 
-// Переброс выбранных кубиков (кнопка)
+// Переброс выбранных кубиков
 function rerollSelected() {
+  if (isRolling) return;
   if (rerollsLeft <= 0) {
     showMessage('Нет перебросов!', 'error');
     return;
   }
-  rollDice();
+  if (!hasRolled || !roundActive) return;
+
+  let anySelected = false;
+  for (let i = 0; i < 5; i++) {
+    if (selectedDice[i] && !lockedDice[i]) {
+      dice[i] = Math.floor(Math.random() * 6) + 1;
+      anySelected = true;
+      selectedDice[i] = false;
+      diceElements[i].classList.remove('selected');
+    }
+  }
+  if (!anySelected) {
+    showMessage('Выберите кубики для переброса!', 'error');
+    return;
+  }
+
+  rerollsLeft--;
+  updateDiceDisplay();
+  updateStats();
+  updateRerollDisplay();
+  document.getElementById('rerollBtn').disabled = true; // сброс выбора
+
+  if (rerollsLeft <= 0) {
+    document.getElementById('rerollBtn').disabled = true;
+  }
 }
 
 // Играть руку
@@ -104,14 +99,10 @@ function playHand() {
     showMessage('Нет рук!', 'error');
     return;
   }
-  if (!hasRolled) {
-    showMessage('Сначала бросьте кубики!', 'error');
-    return;
-  }
+  if (!hasRolled || !roundActive) return;
 
   // Блокируем кнопки
   document.getElementById('playBtn').disabled = true;
-  document.getElementById('rollBtn').disabled = true;
   document.getElementById('rerollBtn').disabled = true;
 
   // Рассчитываем результат
@@ -119,7 +110,6 @@ function playHand() {
   const multiplier = calculateMultiplier(dice);
   const total = bone * multiplier;
 
-  // Показываем результат
   const resultEl = document.getElementById('resultMessage');
   const isWin = total >= limit;
 
@@ -128,7 +118,7 @@ function playHand() {
     resultEl.className = 'result win';
     resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
 
-    // Добавляем предмет в инвентарь
+    // Добавляем предмет
     const itemName = generateItemName();
     const price = Math.floor(bone * multiplier * 1.5);
     inventory.push({ name: itemName, price: price, level: 1 });
@@ -146,66 +136,57 @@ function playHand() {
     resultEl.className = 'result lose';
     resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
 
-    // Если есть предметы в инвентаре — сжигаем один случайный
     if (inventory.length > 0) {
       const lostIndex = Math.floor(Math.random() * inventory.length);
       const lostItem = inventory[lostIndex];
       inventory.splice(lostIndex, 1);
       renderInventory();
-      showMessage(`🔥 Предмет "${lostItem.name}" сгорел!`, 'error');
+      showMessage(`🔥 "${lostItem.name}" сгорел!`, 'error');
       saveProgress();
     }
   }
 
-  // Сброс раунда
   handsLeft--;
   updateHandsDisplay();
 
   if (handsLeft <= 0) {
-    // Раунд окончен — сбрасываем всё
+    // Раунд окончен — блокируем всё, через 2 сек сброс
+    roundActive = false;
+    document.getElementById('playBtn').disabled = true;
+    document.getElementById('rerollBtn').disabled = true;
     setTimeout(() => {
-      resetRound();
-    }, 2000);
+      startRound();
+    }, 2500);
   } else {
-    // Разблокируем для следующей руки
+    // Следующая рука — сброс кубиков и авто-бросок
     setTimeout(() => {
+      // Сброс состояния для новой руки
       hasRolled = false;
       lockedDice = [false, false, false, false, false];
-      diceElements.forEach(el => el.classList.remove('locked'));
-      document.getElementById('playBtn').disabled = true;
-      document.getElementById('rollBtn').disabled = false;
-      document.getElementById('rerollBtn').disabled = true;
-      document.getElementById('resultMessage').textContent = '';
+      selectedDice = [false, false, false, false, false];
+      diceElements.forEach(el => {
+        el.classList.remove('selected', 'locked');
+      });
+      // Автоматический бросок всех кубиков
+      for (let i = 0; i < 5; i++) {
+        dice[i] = Math.floor(Math.random() * 6) + 1;
+      }
+      hasRolled = true;
       updateDiceDisplay();
+      updateStats();
+      // Сброс перебросов для новой руки
+      rerollsLeft = 3;
+      updateRerollDisplay();
+      document.getElementById('rerollBtn').disabled = true;
+      document.getElementById('playBtn').disabled = false;
+      document.getElementById('resultMessage').textContent = '';
+      document.getElementById('resultMessage').className = 'result';
+      // Разблокируем выбор кубиков
     }, 1500);
   }
-
-  saveProgress();
-}
-
-// Сброс раунда
-function resetRound() {
-  hasRolled = false;
-  rerollsLeft = 3;
-  handsLeft = 3;
-  lockedDice = [false, false, false, false, false];
-  selectedDice = [false, false, false, false, false];
-  dice = [0, 0, 0, 0, 0];
-  diceElements.forEach(el => {
-    el.classList.remove('selected', 'locked');
-    el.textContent = '⚀';
-  });
-  document.getElementById('playBtn').disabled = true;
-  document.getElementById('rerollBtn').disabled = true;
-  document.getElementById('rollBtn').disabled = false;
-  document.getElementById('resultMessage').textContent = '';
-  updateRerollDisplay();
-  updateHandsDisplay();
-  updateStats();
 }
 
 // ===== РАСЧЁТ КОМБИНАЦИЙ =====
-
 function calculateMultiplier(diceValues) {
   const counts = {};
   for (const val of diceValues) {
@@ -214,23 +195,20 @@ function calculateMultiplier(diceValues) {
   const sorted = Object.values(counts).sort((a, b) => b - a);
   const unique = Object.keys(counts).length;
 
-  // Проверка на стрит (5 последовательных)
   const sortedVals = [...diceValues].sort((a, b) => a - b);
   const isStraight = sortedVals.every((v, i) => i === 0 || v === sortedVals[i-1] + 1);
 
-  // Покерные комбинации
-  if (sorted[0] === 5) return 6;       // Пять одинаковых
-  if (sorted[0] === 4) return 4;       // Четыре одинаковых
-  if (sorted[0] === 3 && sorted[1] === 2) return 3.5; // Фулл-хаус
-  if (isStraight) return 2.5;           // Стрит
-  if (sorted[0] === 3) return 2;       // Три одинаковых
-  if (sorted[0] === 2 && sorted[1] === 2) return 1.5; // Две пары
-  if (sorted[0] === 2) return 1.2;     // Одна пара
-  return 1;                            // Старшая карта
+  if (sorted[0] === 5) return 6;
+  if (sorted[0] === 4) return 4;
+  if (sorted[0] === 3 && sorted[1] === 2) return 3.5;
+  if (isStraight) return 2.5;
+  if (sorted[0] === 3) return 2;
+  if (sorted[0] === 2 && sorted[1] === 2) return 1.5;
+  if (sorted[0] === 2) return 1.2;
+  return 1;
 }
 
 // ===== ГЕНЕРАЦИЯ ПРЕДМЕТОВ =====
-
 function generateItemName() {
   const prefixes = ['Тенистый', 'Лунный', 'Огненный', 'Ледяной', 'Кровавый', 'Золотой', 'Древний', 'Космический', 'Призрачный', 'Божественный'];
   const suffixes = ['Клинок', 'Щит', 'Амулет', 'Кольцо', 'Посох', 'Меч', 'Лук', 'Кинжал', 'Топор', 'Молот'];
@@ -238,7 +216,6 @@ function generateItemName() {
 }
 
 // ===== ОТОБРАЖЕНИЕ =====
-
 function updateDiceDisplay() {
   diceElements.forEach((el, i) => {
     if (dice[i] >= 1 && dice[i] <= 6) {
@@ -259,13 +236,13 @@ function updateStats() {
 }
 
 function updateRerollDisplay() {
-  document.getElementById('rerollBtn').textContent = `🔄 Переброс (${rerollsLeft})`;
-  document.getElementById('rerollBtn').disabled = (rerollsLeft <= 0 || !hasRolled);
+  document.getElementById('rerollCount').textContent = rerollsLeft;
+  document.getElementById('rerollBtn').disabled = (rerollsLeft <= 0 || !hasRolled || !roundActive);
 }
 
 function updateHandsDisplay() {
-  document.getElementById('playBtn').textContent = `🎯 Играть руку (${handsLeft})`;
-  document.getElementById('playBtn').disabled = (handsLeft <= 0 || !hasRolled);
+  document.getElementById('handCount').textContent = handsLeft;
+  document.getElementById('playBtn').disabled = (handsLeft <= 0 || !hasRolled || !roundActive);
 }
 
 function renderInventory() {
@@ -288,7 +265,6 @@ function renderInventory() {
 }
 
 // ===== СОХРАНЕНИЕ =====
-
 async function saveProgress() {
   try {
     await fetch('/update-progress', {
@@ -302,7 +278,6 @@ async function saveProgress() {
 }
 
 // ===== АВТОРИЗАЦИЯ =====
-
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -359,7 +334,6 @@ async function logout() {
 }
 
 // ===== ЗАГРУЗКА ДАННЫХ =====
-
 async function loadGameData() {
   try {
     const res = await fetch('/user');
@@ -371,7 +345,8 @@ async function loadGameData() {
       document.getElementById('levelDisplay').textContent = level;
       document.getElementById('limitDisplay').textContent = limit;
       renderInventory();
-      resetRound();
+      // Запускаем первый раунд
+      startRound();
     }
   } catch (e) {
     showMessage('Ошибка загрузки данных', 'error');
@@ -379,7 +354,6 @@ async function loadGameData() {
 }
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
-
 function showMessage(text, type) {
   const el = document.getElementById('message');
   el.textContent = text;
@@ -394,7 +368,6 @@ function escapeHtml(str) {
 }
 
 // ===== ПРОВЕРКА СЕССИИ =====
-
 async function fetchUser() {
   try {
     const res = await fetch('/user');
@@ -411,7 +384,7 @@ async function fetchUser() {
         document.getElementById('levelDisplay').textContent = level;
         document.getElementById('limitDisplay').textContent = limit;
         renderInventory();
-        resetRound();
+        startRound();
       }
     }
   } catch (e) {}

@@ -10,7 +10,7 @@
 
 <div class="container">
   <h1>🎲 Dice of Kalma</h1>
-  <div class="subtitle">Брось кубики, собери комбинацию, победи лимит</div>
+  <div class="subtitle">Собери комбинацию, побей лимит</div>
 
   <!-- Авторизация -->
   <div id="authSection" class="auth-section">
@@ -29,11 +29,11 @@
 
     <!-- Статус -->
     <div class="status-bar">
-      <div class="status-item">Уровень: <span id="levelDisplay">1</span></div>
-      <div class="status-item">Лимит: <span id="limitDisplay">100</span></div>
-      <div class="status-item">Кость: <span id="boneDisplay">0</span></div>
-      <div class="status-item">Множ: <span id="multiplierDisplay">0</span>x</div>
-      <div class="status-item">Итог: <span id="totalDisplay">0</span></div>
+      <div class="status-item">Уровень <span id="levelDisplay">1</span></div>
+      <div class="status-item">Лимит <span id="limitDisplay">100</span></div>
+      <div class="status-item">Кость <span id="boneDisplay">0</span></div>
+      <div class="status-item">Множ <span id="multiplierDisplay">0</span>x</div>
+      <div class="status-item">Итог <span id="totalDisplay">0</span></div>
     </div>
 
     <!-- Кубики -->
@@ -45,11 +45,16 @@
       <div class="dice" data-index="4">⚀</div>
     </div>
 
+    <!-- Информация о перебросах и руках -->
+    <div class="info-row">
+      <span>Перебросов: <strong id="rerollCount">3</strong></span>
+      <span>Рук: <strong id="handCount">3</strong></span>
+    </div>
+
     <!-- Кнопки -->
     <div class="actions">
-      <button onclick="rollDice()" id="rollBtn">🎲 Бросить кубики</button>
-      <button onclick="playHand()" id="playBtn" disabled>🎯 Играть руку (3)</button>
-      <button onclick="rerollSelected()" id="rerollBtn" disabled>🔄 Переброс (3)</button>
+      <button onclick="rerollSelected()" id="rerollBtn" disabled>🔄 Переброс</button>
+      <button onclick="playHand()" id="playBtn" disabled>🎯 Играть руку</button>
     </div>
 
     <!-- Результат -->

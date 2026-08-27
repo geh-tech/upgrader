@@ -100,16 +100,16 @@ h1 {
 /* Статус */
 .status-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
   background: #222;
-  padding: 15px;
+  padding: 12px 10px;
   border-radius: 16px;
   margin: 15px 0;
 }
 .status-item {
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #aaa;
 }
 .status-item span {
@@ -117,7 +117,7 @@ h1 {
   font-size: 1.4rem;
   font-weight: bold;
   color: #ffd700;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 /* Кубики */
@@ -153,43 +153,45 @@ h1 {
   border-color: #69db7c;
   background: #1a2a1a;
 }
+.dice.disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Информационная строка */
+.info-row {
+  display: flex;
+  justify-content: space-around;
+  margin: 10px 0 15px;
+  font-size: 1rem;
+  color: #aaa;
+}
+.info-row strong {
+  color: #ffd700;
+  font-size: 1.2rem;
+}
 
 /* Кнопки */
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 15px;
   justify-content: center;
-  margin: 20px 0;
+  margin: 10px 0 15px;
 }
 .actions button {
-  padding: 12px 28px;
+  padding: 12px 30px;
   border: none;
   border-radius: 30px;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: 1.1rem;
   cursor: pointer;
   transition: 0.2s;
   flex: 1;
-  min-width: 120px;
+  max-width: 220px;
 }
 .actions button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-#rollBtn {
-  background: #2a7a2a;
-  color: #fff;
-}
-#rollBtn:hover:not(:disabled) {
-  background: #3a9a3a;
-}
-#playBtn {
-  background: #b8860b;
-  color: #fff;
-}
-#playBtn:hover:not(:disabled) {
-  background: #d4a017;
 }
 #rerollBtn {
   background: #1a4a7a;
@@ -197,6 +199,13 @@ h1 {
 }
 #rerollBtn:hover:not(:disabled) {
   background: #2a5a9a;
+}
+#playBtn {
+  background: #b8860b;
+  color: #fff;
+}
+#playBtn:hover:not(:disabled) {
+  background: #d4a017;
 }
 
 .result {
@@ -214,6 +223,10 @@ h1 {
 .result.lose {
   color: #ff6b6b;
   background: #2a1a1a;
+}
+.result.info {
+  color: #ffd700;
+  background: #2a2a1a;
 }
 
 /* Инвентарь */
@@ -280,4 +293,5 @@ h1 {
   .container { padding: 20px; }
   .dice { width: 55px; height: 55px; font-size: 2rem; }
   .status-bar { grid-template-columns: repeat(3, 1fr); }
+  .actions button { padding: 10px 20px; font-size: 1rem; }
 }

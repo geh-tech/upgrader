@@ -22,20 +22,18 @@ app.use(session({
 const db = new sqlite3.Database('./database.db');
 
 db.serialize(() => {
-  // Пользователи
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT
   )`);
 
-  // Прогресс игрока (уровень, лимит, инвентарь)
   db.run(`CREATE TABLE IF NOT EXISTS player_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER UNIQUE,
     level INTEGER DEFAULT 1,
     limit_score INTEGER DEFAULT 100,
-    inventory TEXT DEFAULT '[]', -- JSON массив предметов
+    inventory TEXT DEFAULT '[]',
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 });
@@ -74,8 +72,6 @@ function createPlayerData(userId) {
 }
 
 // ===== API =====
-
-// Получить текущего пользователя
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -88,7 +84,6 @@ app.get('/user', async (req, res) => {
   });
 });
 
-// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -104,7 +99,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Вход
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
@@ -116,13 +110,11 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Выход
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
 });
 
-// Обновить прогресс (после победы/поражения)
 app.post('/update-progress', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -130,27 +122,6 @@ app.post('/update-progress', async (req, res) => {
   db.run(
     'UPDATE player_data SET level = ?, limit_score = ?, inventory = ? WHERE user_id = ?',
     [level, limit_score, JSON.stringify(inventory), user.id],
-    function(err) {
-      if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      res.json({ success: true });
-    }
-  );
-});
-
-// Добавить предмет в инвентарь (при победе)
-app.post('/add-item', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { name, price } = req.body;
-  if (!name) return res.status(400).json({ error: 'Введите название' });
-
-  const data = await getPlayerData(user.id);
-  const inventory = data ? JSON.parse(data.inventory) : [];
-  inventory.push({ name, price: price || 100, level: 1 });
-
-  db.run(
-    'UPDATE player_data SET inventory = ? WHERE user_id = ?',
-    [JSON.stringify(inventory), user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
       res.json({ success: true });
