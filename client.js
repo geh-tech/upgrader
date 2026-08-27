@@ -1,419 +1,308 @@
 // ===== ГЛОБАЛЬНЫЕ =====
 let currentUser = null;
-let currentItems = [];
-let selectedItemId = null;
-let isSpinning = false;
-let animationFrame = null;
+let level = 1;
+let limit = 100;
+let inventory = [];
+let dice = [0, 0, 0, 0, 0];
+let selectedDice = [false, false, false, false, false];
+let lockedDice = [false, false, false, false, false];
+let rerollsLeft = 3;
+let handsLeft = 3;
+let isRolling = false;
+let hasRolled = false;
 
-const canvas = document.getElementById('wheelCanvas');
-const ctx = canvas.getContext('2d');
-const chanceSlider = document.getElementById('chanceSlider');
-const chanceDisplay = document.getElementById('chanceDisplay');
-const coeffDisplay = document.getElementById('coefficientDisplay');
-const hiddenChanceDisplay = document.getElementById('hiddenChanceDisplay');
+// Эмодзи для кубиков
+const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
-// ===== РАСЧЁТЫ =====
-function calculateCoefficient(chance) {
-  return 100 / chance;
-}
+// ===== ИНИЦИАЛИЗАЦИЯ =====
+const diceElements = document.querySelectorAll('.dice');
 
-function calculateHiddenChance(chance, price) {
-  const penalty = Math.min(10, price / 1000);
-  return Math.max(1, chance - penalty);
-}
+diceElements.forEach((el, i) => {
+  el.addEventListener('click', () => {
+    if (!hasRolled || isRolling) return;
+    if (lockedDice[i]) return;
+    selectedDice[i] = !selectedDice[i];
+    el.classList.toggle('selected');
+  });
+});
 
-// ===== РИСОВАНИЕ (с чёткими границами) =====
-function drawWheel(realChance) {
-  const w = canvas.width, h = canvas.height;
-  const cx = w/2, cy = h/2;
-  const radius = Math.min(w,h)/2 - 10;
+// ===== ИГРОВЫЕ ФУНКЦИИ =====
 
-  ctx.clearRect(0, 0, w, h);
-
-  // Рисуем фон (серый)
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fillStyle = '#2a2a2a';
-  ctx.fill();
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Сектор шанса (жёлтый)
-  if (realChance > 0) {
-    const startAngle = -Math.PI/2;
-    const endAngle = startAngle + (realChance/100) * 2*Math.PI;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, radius, startAngle, endAngle);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
-    ctx.fill();
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-
-    // Жирные границы сектора
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    const x1 = cx + Math.cos(startAngle) * radius;
-    const y1 = cy + Math.sin(startAngle) * radius;
-    ctx.lineTo(x1, y1);
-    ctx.strokeStyle = '#ffaa00';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    const x2 = cx + Math.cos(endAngle) * radius;
-    const y2 = cy + Math.sin(endAngle) * radius;
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-
-    // Текст "WIN" внутри сектора
-    const midAngle = startAngle + (endAngle - startAngle) / 2;
-    const textRadius = radius * 0.6;
-    const tx = cx + Math.cos(midAngle) * textRadius;
-    const ty = cy + Math.sin(midAngle) * textRadius;
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('WIN', tx, ty);
-  }
-
-  // Текст "LOSE" на серой части
-  const loseStart = -Math.PI/2 + (realChance/100) * 2*Math.PI;
-  const loseEnd = -Math.PI/2 + 2*Math.PI;
-  if (loseEnd - loseStart > 0.1) {
-    const midLose = loseStart + (loseEnd - loseStart) / 2;
-    const lx = cx + Math.cos(midLose) * radius * 0.6;
-    const ly = cy + Math.sin(midLose) * radius * 0.6;
-    ctx.fillStyle = '#666';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('LOSE', lx, ly);
-  }
-
-  // Центр
-  ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, Math.PI*2);
-  ctx.fillStyle = '#ffd700';
-  ctx.fill();
-
-  // Информация
-  ctx.fillStyle = '#aaa';
-  ctx.font = '14px monospace';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`Реальный шанс: ${realChance.toFixed(1)}%`, 10, 10);
-}
-
-function drawArrow(angle) {
-  const w = canvas.width, h = canvas.height;
-  const cx = w/2, cy = h/2;
-  const radius = Math.min(w,h)/2 - 10;
-  const realChance = window._lastRealChance || 50;
-  drawWheel(realChance);
-
-  const arrowLen = radius * 0.85;
-  const tipX = cx + Math.sin(angle) * arrowLen;
-  const tipY = cy - Math.cos(angle) * arrowLen;
-
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(tipX, tipY);
-  ctx.strokeStyle = '#ff3333';
-  ctx.lineWidth = 4;
-  ctx.shadowColor = '#ff3333';
-  ctx.shadowBlur = 10;
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, Math.PI*2);
-  ctx.fillStyle = '#ff3333';
-  ctx.fill();
-
-  // Угол
-  let deg = ((angle % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
-  deg = deg * 180 / Math.PI;
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(`∠ ${deg.toFixed(1)}°`, w-10, h-10);
-}
-
-// ===== ОБНОВЛЕНИЕ =====
-function updateChanceDisplay() {
-  const declared = parseInt(chanceSlider.value);
-  chanceDisplay.textContent = declared;
-  const coeff = calculateCoefficient(declared);
-  coeffDisplay.textContent = coeff.toFixed(3);
-
-  const item = currentItems.find(i => i.id === selectedItemId);
-  const price = item ? item.price : 100;
-  const real = calculateHiddenChance(declared, price);
-  hiddenChanceDisplay.textContent = real.toFixed(1);
-  window._lastRealChance = real;
-
-  // Перерисовываем только если не идёт анимация
-  if (!isSpinning) {
-    drawWheel(real);
-    drawArrow(0);
-  }
-}
-
-chanceSlider.addEventListener('input', updateChanceDisplay);
-
-// ===== ИНВЕНТАРЬ =====
-async function loadInventory() {
-  try {
-    const res = await fetch('/inventory');
-    if (!res.ok) throw new Error('Не авторизован');
-    const items = await res.json();
-    currentItems = items;
-    renderInventory(items);
-  } catch (e) {
-    document.getElementById('inventoryContainer').innerHTML = '<div class="empty-msg">Ошибка загрузки</div>';
-  }
-}
-
-function renderInventory(items) {
-  const container = document.getElementById('inventoryContainer');
-  if (!items || items.length === 0) {
-    container.innerHTML = '<div class="empty-msg">У вас пока нет предметов.</div>';
+// Бросок кубиков
+function rollDice() {
+  if (isRolling) return;
+  if (rerollsLeft <= 0 && hasRolled) {
+    showMessage('У вас закончились перебросы!', 'error');
     return;
   }
-  let html = '<div class="inventory-grid">';
-  items.forEach(item => {
+
+  isRolling = true;
+  document.getElementById('rollBtn').disabled = true;
+
+  // Если первый бросок или переброс
+  if (!hasRolled) {
+    // Первый бросок — все кубики новые
+    for (let i = 0; i < 5; i++) {
+      if (!lockedDice[i]) {
+        dice[i] = Math.floor(Math.random() * 6) + 1;
+      }
+    }
+    hasRolled = true;
+    rerollsLeft = 3;
+    handsLeft = 3;
+    document.getElementById('rerollBtn').disabled = false;
+    document.getElementById('playBtn').disabled = false;
+    updateRerollDisplay();
+    updateHandsDisplay();
+  } else {
+    // Переброс — только выбранные
+    let anySelected = false;
+    for (let i = 0; i < 5; i++) {
+      if (selectedDice[i] && !lockedDice[i]) {
+        dice[i] = Math.floor(Math.random() * 6) + 1;
+        anySelected = true;
+        selectedDice[i] = false;
+        diceElements[i].classList.remove('selected');
+      }
+    }
+    if (!anySelected) {
+      showMessage('Выберите кубики для переброса!', 'error');
+      isRolling = false;
+      document.getElementById('rollBtn').disabled = false;
+      return;
+    }
+    rerollsLeft--;
+    updateRerollDisplay();
+    if (rerollsLeft <= 0) {
+      document.getElementById('rerollBtn').disabled = true;
+    }
+  }
+
+  // Обновить отображение
+  updateDiceDisplay();
+  updateStats();
+
+  isRolling = false;
+  document.getElementById('rollBtn').disabled = false;
+  document.getElementById('rerollBtn').disabled = (rerollsLeft <= 0 || !hasRolled);
+  document.getElementById('playBtn').disabled = false;
+}
+
+// Переброс выбранных кубиков (кнопка)
+function rerollSelected() {
+  if (rerollsLeft <= 0) {
+    showMessage('Нет перебросов!', 'error');
+    return;
+  }
+  rollDice();
+}
+
+// Играть руку
+function playHand() {
+  if (isRolling) return;
+  if (handsLeft <= 0) {
+    showMessage('Нет рук!', 'error');
+    return;
+  }
+  if (!hasRolled) {
+    showMessage('Сначала бросьте кубики!', 'error');
+    return;
+  }
+
+  // Блокируем кнопки
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('rollBtn').disabled = true;
+  document.getElementById('rerollBtn').disabled = true;
+
+  // Рассчитываем результат
+  const bone = dice.reduce((a, b) => a + b, 0);
+  const multiplier = calculateMultiplier(dice);
+  const total = bone * multiplier;
+
+  // Показываем результат
+  const resultEl = document.getElementById('resultMessage');
+  const isWin = total >= limit;
+
+  if (isWin) {
+    // ПОБЕДА
+    resultEl.className = 'result win';
+    resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
+
+    // Добавляем предмет в инвентарь
+    const itemName = generateItemName();
+    const price = Math.floor(bone * multiplier * 1.5);
+    inventory.push({ name: itemName, price: price, level: 1 });
+    saveProgress();
+
+    // Повышаем уровень
+    level++;
+    limit = Math.floor(limit * 1.5) + 50;
+    document.getElementById('levelDisplay').textContent = level;
+    document.getElementById('limitDisplay').textContent = limit;
+
+    renderInventory();
+  } else {
+    // ПОРАЖЕНИЕ
+    resultEl.className = 'result lose';
+    resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
+
+    // Если есть предметы в инвентаре — сжигаем один случайный
+    if (inventory.length > 0) {
+      const lostIndex = Math.floor(Math.random() * inventory.length);
+      const lostItem = inventory[lostIndex];
+      inventory.splice(lostIndex, 1);
+      renderInventory();
+      showMessage(`🔥 Предмет "${lostItem.name}" сгорел!`, 'error');
+      saveProgress();
+    }
+  }
+
+  // Сброс раунда
+  handsLeft--;
+  updateHandsDisplay();
+
+  if (handsLeft <= 0) {
+    // Раунд окончен — сбрасываем всё
+    setTimeout(() => {
+      resetRound();
+    }, 2000);
+  } else {
+    // Разблокируем для следующей руки
+    setTimeout(() => {
+      hasRolled = false;
+      lockedDice = [false, false, false, false, false];
+      diceElements.forEach(el => el.classList.remove('locked'));
+      document.getElementById('playBtn').disabled = true;
+      document.getElementById('rollBtn').disabled = false;
+      document.getElementById('rerollBtn').disabled = true;
+      document.getElementById('resultMessage').textContent = '';
+      updateDiceDisplay();
+    }, 1500);
+  }
+
+  saveProgress();
+}
+
+// Сброс раунда
+function resetRound() {
+  hasRolled = false;
+  rerollsLeft = 3;
+  handsLeft = 3;
+  lockedDice = [false, false, false, false, false];
+  selectedDice = [false, false, false, false, false];
+  dice = [0, 0, 0, 0, 0];
+  diceElements.forEach(el => {
+    el.classList.remove('selected', 'locked');
+    el.textContent = '⚀';
+  });
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('rerollBtn').disabled = true;
+  document.getElementById('rollBtn').disabled = false;
+  document.getElementById('resultMessage').textContent = '';
+  updateRerollDisplay();
+  updateHandsDisplay();
+  updateStats();
+}
+
+// ===== РАСЧЁТ КОМБИНАЦИЙ =====
+
+function calculateMultiplier(diceValues) {
+  const counts = {};
+  for (const val of diceValues) {
+    counts[val] = (counts[val] || 0) + 1;
+  }
+  const sorted = Object.values(counts).sort((a, b) => b - a);
+  const unique = Object.keys(counts).length;
+
+  // Проверка на стрит (5 последовательных)
+  const sortedVals = [...diceValues].sort((a, b) => a - b);
+  const isStraight = sortedVals.every((v, i) => i === 0 || v === sortedVals[i-1] + 1);
+
+  // Покерные комбинации
+  if (sorted[0] === 5) return 6;       // Пять одинаковых
+  if (sorted[0] === 4) return 4;       // Четыре одинаковых
+  if (sorted[0] === 3 && sorted[1] === 2) return 3.5; // Фулл-хаус
+  if (isStraight) return 2.5;           // Стрит
+  if (sorted[0] === 3) return 2;       // Три одинаковых
+  if (sorted[0] === 2 && sorted[1] === 2) return 1.5; // Две пары
+  if (sorted[0] === 2) return 1.2;     // Одна пара
+  return 1;                            // Старшая карта
+}
+
+// ===== ГЕНЕРАЦИЯ ПРЕДМЕТОВ =====
+
+function generateItemName() {
+  const prefixes = ['Тенистый', 'Лунный', 'Огненный', 'Ледяной', 'Кровавый', 'Золотой', 'Древний', 'Космический', 'Призрачный', 'Божественный'];
+  const suffixes = ['Клинок', 'Щит', 'Амулет', 'Кольцо', 'Посох', 'Меч', 'Лук', 'Кинжал', 'Топор', 'Молот'];
+  return prefixes[Math.floor(Math.random() * prefixes.length)] + ' ' + suffixes[Math.floor(Math.random() * suffixes.length)];
+}
+
+// ===== ОТОБРАЖЕНИЕ =====
+
+function updateDiceDisplay() {
+  diceElements.forEach((el, i) => {
+    if (dice[i] >= 1 && dice[i] <= 6) {
+      el.textContent = DICE_FACES[dice[i] - 1];
+    } else {
+      el.textContent = '⚀';
+    }
+  });
+}
+
+function updateStats() {
+  const bone = dice.reduce((a, b) => a + b, 0);
+  const multiplier = calculateMultiplier(dice);
+  const total = bone * multiplier;
+  document.getElementById('boneDisplay').textContent = bone;
+  document.getElementById('multiplierDisplay').textContent = multiplier.toFixed(1);
+  document.getElementById('totalDisplay').textContent = total;
+}
+
+function updateRerollDisplay() {
+  document.getElementById('rerollBtn').textContent = `🔄 Переброс (${rerollsLeft})`;
+  document.getElementById('rerollBtn').disabled = (rerollsLeft <= 0 || !hasRolled);
+}
+
+function updateHandsDisplay() {
+  document.getElementById('playBtn').textContent = `🎯 Играть руку (${handsLeft})`;
+  document.getElementById('playBtn').disabled = (handsLeft <= 0 || !hasRolled);
+}
+
+function renderInventory() {
+  const container = document.getElementById('inventoryContainer');
+  if (!inventory || inventory.length === 0) {
+    container.innerHTML = '<div style="color:#666;padding:10px;">Пусто</div>';
+    return;
+  }
+  let html = '';
+  inventory.forEach((item, idx) => {
     html += `
-      <div class="item-card" data-id="${item.id}">
-        <div class="name">${escapeHtml(item.name)}</div>
-        <div class="level">Уровень ${item.level}</div>
-        <div class="price">💰 ${item.price}</div>
-        <div class="rarity">Редкость: ${item.rarity}/1000</div>
-        <div class="actions">
-          <button onclick="openUpgrade(${item.id})">⚡ Апгрейд</button>
-          <button class="delete-btn" onclick="deleteItem(${item.id})">✖</button>
-        </div>
+      <div class="inv-item">
+        <div class="inv-name">${escapeHtml(item.name)}</div>
+        <div class="inv-level">Ур. ${item.level || 1}</div>
+        <div class="inv-price">💰 ${item.price || 100}</div>
       </div>
     `;
   });
-  html += '</div>';
   container.innerHTML = html;
 }
 
-// ===== ДОБАВЛЕНИЕ / УДАЛЕНИЕ =====
-async function addItem() {
-  const name = document.getElementById('itemName').value.trim();
-  const price = parseInt(document.getElementById('itemPrice').value) || 100;
-  if (!name) { showMessage('Введите название', 'error'); return; }
+// ===== СОХРАНЕНИЕ =====
+
+async function saveProgress() {
   try {
-    const res = await fetch('/add-item', {
+    await fetch('/update-progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, price, rarity: 500 })
+      body: JSON.stringify({ level, limit_score: limit, inventory })
     });
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('itemName').value = '';
-      showMessage('Предмет добавлен!', 'success');
-      loadInventory();
-    } else {
-      showMessage(data.error || 'Ошибка', 'error');
-    }
   } catch (e) {
-    showMessage('Ошибка соединения', 'error');
-  }
-}
-
-async function deleteItem(id) {
-  if (!confirm('Удалить?')) return;
-  try {
-    const res = await fetch('/delete-item', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: id })
-    });
-    if (res.ok) {
-      loadInventory();
-    } else {
-      showMessage('Ошибка удаления', 'error');
-    }
-  } catch (e) {
-    showMessage('Ошибка соединения', 'error');
-  }
-}
-
-// ===== МОДАЛКА =====
-function openUpgrade(id) {
-  if (isSpinning) return;
-  const item = currentItems.find(i => i.id === id);
-  if (!item) return;
-  selectedItemId = id;
-  document.getElementById('modalItemName').textContent = item.name;
-  document.getElementById('modalCurrentLevel').textContent = item.level;
-  document.getElementById('modalPrice').textContent = item.price;
-  document.getElementById('modalResult').textContent = '';
-  document.getElementById('upgradeBtn').disabled = false;
-  chanceSlider.value = 50;
-  updateChanceDisplay();
-  document.getElementById('upgradeModal').classList.add('active');
-}
-
-function closeModal() {
-  if (isSpinning) return;
-  document.getElementById('upgradeModal').classList.remove('active');
-  selectedItemId = null;
-}
-
-// ===== ВРАЩЕНИЕ =====
-function spinWheel(targetAngle, callback) {
-  const duration = 3000;
-  const startTime = performance.now();
-  const startAngle = 0;
-  const extraRotations = 5 + Math.random() * 3;
-  const totalAngle = targetAngle + extraRotations * Math.PI * 2;
-  const realChance = window._lastRealChance || 50;
-  isSpinning = true;
-
-  function animate(time) {
-    const elapsed = time - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const angle = startAngle + totalAngle * eased;
-    drawWheel(realChance);
-    drawArrow(angle);
-    if (progress < 1) {
-      animationFrame = requestAnimationFrame(animate);
-    } else {
-      let finalAngle = angle % (2 * Math.PI);
-      if (finalAngle < 0) finalAngle += 2 * Math.PI;
-      const sectorStart = -Math.PI / 2;
-      const sectorEnd = sectorStart + (realChance / 100) * 2 * Math.PI;
-      let startNorm = ((sectorStart % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-      let endNorm = ((sectorEnd % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-      let hit = false;
-      if (startNorm < endNorm) {
-        if (finalAngle >= startNorm && finalAngle <= endNorm) hit = true;
-      } else {
-        if (finalAngle >= startNorm || finalAngle <= endNorm) hit = true;
-      }
-      console.log(`🔍 Реальный шанс: ${realChance}%`);
-      console.log(`🔍 Сектор (норм): [${(startNorm*180/Math.PI).toFixed(1)}°, ${(endNorm*180/Math.PI).toFixed(1)}°]`);
-      console.log(`🔍 Угол стрелки: ${(finalAngle*180/Math.PI).toFixed(1)}°`);
-      console.log(`🔍 Попадание: ${hit}`);
-      isSpinning = false;
-      callback(hit);
-    }
-  }
-  animationFrame = requestAnimationFrame(animate);
-}
-
-// ===== ПОДТВЕРЖДЕНИЕ АПГРЕЙДА =====
-async function confirmUpgrade() {
-  if (isSpinning) return;
-  const item = currentItems.find(i => i.id === selectedItemId);
-  if (!item) return;
-
-  const declared = parseInt(chanceSlider.value);
-  const realChance = calculateHiddenChance(declared, item.price);
-  const coeff = calculateCoefficient(declared);
-
-  const btn = document.getElementById('upgradeBtn');
-  btn.disabled = true;
-  document.getElementById('modalResult').textContent = '🎲 Крутим...';
-
-  const targetAngle = Math.random() * Math.PI * 2;
-
-  spinWheel(targetAngle, async (hit) => {
-    if (hit) {
-      const newLevel = Math.ceil(item.level * coeff);
-      const newPrice = Math.ceil(item.price * coeff);
-      try {
-        const res = await fetch('/force-upgrade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: selectedItemId, newLevel, newPrice })
-        });
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('modalResult').textContent = `🎉 Успех! Уровень ${newLevel}, цена ${newPrice} (x${coeff.toFixed(3)})`;
-          const itemInList = currentItems.find(i => i.id === selectedItemId);
-          if (itemInList) {
-            itemInList.level = newLevel;
-            itemInList.price = newPrice;
-          }
-          renderInventory(currentItems);
-          loadHistory();
-        } else {
-          document.getElementById('modalResult').textContent = '❌ Ошибка при обновлении';
-        }
-      } catch (e) {
-        document.getElementById('modalResult').textContent = '❌ Ошибка соединения';
-      }
-    } else {
-      try {
-        await fetch('/record-lose', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: selectedItemId })
-        });
-        const res = await fetch('/delete-item', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: selectedItemId })
-        });
-        if (res.ok) {
-          document.getElementById('modalResult').textContent = '💀 Не повезло... Предмет сгорел!';
-          loadInventory();
-          loadHistory();
-        } else {
-          document.getElementById('modalResult').textContent = '❌ Ошибка при удалении';
-        }
-      } catch (e) {
-        document.getElementById('modalResult').textContent = '❌ Ошибка соединения';
-      }
-    }
-    btn.disabled = false;
-  });
-}
-
-// ===== ИСТОРИЯ (оптимизированная) =====
-let historyInterval = null;
-
-async function loadHistory() {
-  try {
-    const res = await fetch('/history');
-    const entries = await res.json();
-    const list = document.getElementById('historyList');
-    if (!entries || entries.length === 0) {
-      list.innerHTML = '<span class="history-placeholder">Нет апгрейдов</span>';
-      return;
-    }
-    let html = '';
-    entries.forEach(entry => {
-      const cls = entry.win ? 'win' : 'lose';
-      const resultText = entry.win ? '✅' : '❌';
-      html += `
-        <div class="history-item ${cls}">
-          <span class="user">${escapeHtml(entry.username)}</span>
-          поставил <span class="item">${escapeHtml(entry.item_name)}</span>
-          ${entry.win ? `→ уровень ${entry.new_level}` : 'сгорел'}
-          <span class="result-${entry.win ? 'win' : 'lose'}">${resultText}</span>
-        </div>
-      `;
-    });
-    list.innerHTML = html;
-  } catch (e) {
-    // Не показываем ошибку в ленте, просто оставляем старую
+    console.error('Ошибка сохранения:', e);
   }
 }
 
 // ===== АВТОРИЗАЦИЯ =====
+
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -450,13 +339,9 @@ async function login() {
       currentUser = data.username;
       document.getElementById('usernameDisplay').textContent = currentUser;
       document.getElementById('authSection').style.display = 'none';
-      document.getElementById('userInfo').style.display = 'block';
-      document.getElementById('addItemSection').style.display = 'flex';
+      document.getElementById('gameSection').style.display = 'block';
       showMessage('Добро пожаловать!', 'success');
-      loadInventory();
-      loadHistory();
-      if (historyInterval) clearInterval(historyInterval);
-      historyInterval = setInterval(loadHistory, 10000); // обновление раз в 10 секунд
+      loadGameData();
     } else {
       showMessage(data.error || 'Ошибка', 'error');
     }
@@ -467,16 +352,34 @@ async function login() {
 
 async function logout() {
   await fetch('/logout');
-  if (historyInterval) clearInterval(historyInterval);
   currentUser = null;
   document.getElementById('authSection').style.display = 'flex';
-  document.getElementById('userInfo').style.display = 'none';
-  document.getElementById('addItemSection').style.display = 'none';
-  document.getElementById('inventoryContainer').innerHTML = '<div class="empty-msg">Войдите, чтобы увидеть инвентарь</div>';
+  document.getElementById('gameSection').style.display = 'none';
   showMessage('Вы вышли', 'success');
 }
 
+// ===== ЗАГРУЗКА ДАННЫХ =====
+
+async function loadGameData() {
+  try {
+    const res = await fetch('/user');
+    if (res.ok) {
+      const data = await res.json();
+      level = data.level || 1;
+      limit = data.limit_score || 100;
+      inventory = data.inventory || [];
+      document.getElementById('levelDisplay').textContent = level;
+      document.getElementById('limitDisplay').textContent = limit;
+      renderInventory();
+      resetRound();
+    }
+  } catch (e) {
+    showMessage('Ошибка загрузки данных', 'error');
+  }
+}
+
 // ===== ВСПОМОГАТЕЛЬНЫЕ =====
+
 function showMessage(text, type) {
   const el = document.getElementById('message');
   el.textContent = text;
@@ -490,7 +393,8 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ===== ИНИЦИАЛИЗАЦИЯ =====
+// ===== ПРОВЕРКА СЕССИИ =====
+
 async function fetchUser() {
   try {
     const res = await fetch('/user');
@@ -500,15 +404,16 @@ async function fetchUser() {
         currentUser = data.username;
         document.getElementById('usernameDisplay').textContent = currentUser;
         document.getElementById('authSection').style.display = 'none';
-        document.getElementById('userInfo').style.display = 'block';
-        document.getElementById('addItemSection').style.display = 'flex';
-        loadInventory();
-        loadHistory();
-        if (historyInterval) clearInterval(historyInterval);
-        historyInterval = setInterval(loadHistory, 10000);
+        document.getElementById('gameSection').style.display = 'block';
+        level = data.level || 1;
+        limit = data.limit_score || 100;
+        inventory = data.inventory || [];
+        document.getElementById('levelDisplay').textContent = level;
+        document.getElementById('limitDisplay').textContent = limit;
+        renderInventory();
+        resetRound();
       }
     }
   } catch (e) {}
 }
 fetchUser();
-updateChanceDisplay();

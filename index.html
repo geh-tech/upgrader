@@ -3,24 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎰 CS:GO Апгрейдер</title>
+  <title>🎲 Dice of Kalma</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<div id="historyBar">
-  <div class="history-container">
-    <span class="history-label">🔥 Онлайн апгрейды:</span>
-    <div id="historyList" class="history-list">
-      <span class="history-placeholder">Загрузка...</span>
-    </div>
-  </div>
-</div>
-
 <div class="container">
-  <h1>🎰 Апгрейдер CS:GO</h1>
-  <div class="subtitle">Поставь скин – рискуй – улучшай или теряй</div>
+  <h1>🎲 Dice of Kalma</h1>
+  <div class="subtitle">Брось кубики, собери комбинацию, победи лимит</div>
 
+  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -28,50 +20,49 @@
     <button onclick="register()">Регистрация</button>
   </div>
 
-  <div id="userInfo" class="user-info" style="display:none;">
-    Привет, <span id="usernameDisplay"></span>
-    <button class="logout-btn" onclick="logout()">Выйти</button>
-  </div>
-
-  <div id="addItemSection" style="display:none;">
-    <div class="add-item">
-      <input type="text" id="itemName" placeholder="Название предмета" />
-      <input type="number" id="itemPrice" placeholder="Цена" value="100" />
-      <button onclick="addItem()">➕ Добавить</button>
+  <!-- Игровой интерфейс -->
+  <div id="gameSection" style="display:none;">
+    <div class="user-info">
+      Привет, <span id="usernameDisplay"></span>
+      <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
-  </div>
 
-  <div id="inventoryContainer">
-    <div class="empty-msg">Загружаем инвентарь...</div>
+    <!-- Статус -->
+    <div class="status-bar">
+      <div class="status-item">Уровень: <span id="levelDisplay">1</span></div>
+      <div class="status-item">Лимит: <span id="limitDisplay">100</span></div>
+      <div class="status-item">Кость: <span id="boneDisplay">0</span></div>
+      <div class="status-item">Множ: <span id="multiplierDisplay">0</span>x</div>
+      <div class="status-item">Итог: <span id="totalDisplay">0</span></div>
+    </div>
+
+    <!-- Кубики -->
+    <div class="dice-container" id="diceContainer">
+      <div class="dice" data-index="0">⚀</div>
+      <div class="dice" data-index="1">⚀</div>
+      <div class="dice" data-index="2">⚀</div>
+      <div class="dice" data-index="3">⚀</div>
+      <div class="dice" data-index="4">⚀</div>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="actions">
+      <button onclick="rollDice()" id="rollBtn">🎲 Бросить кубики</button>
+      <button onclick="playHand()" id="playBtn" disabled>🎯 Играть руку (3)</button>
+      <button onclick="rerollSelected()" id="rerollBtn" disabled>🔄 Переброс (3)</button>
+    </div>
+
+    <!-- Результат -->
+    <div id="resultMessage" class="result"></div>
+
+    <!-- Инвентарь -->
+    <div class="inventory-section">
+      <h3>📦 Инвентарь</h3>
+      <div id="inventoryContainer" class="inventory-grid"></div>
+    </div>
   </div>
 
   <div id="message" class="error-msg"></div>
-</div>
-
-<div id="upgradeModal" class="modal">
-  <div class="modal-content">
-    <h2>⚡ Апгрейд</h2>
-    <p id="modalItemName" style="font-size:1.2rem; margin-bottom:5px;"></p>
-    <p style="color:#aaa;">Текущий уровень: <span id="modalCurrentLevel"></span></p>
-    <p style="color:#aaa;">Цена: <span id="modalPrice"></span></p>
-
-    <canvas id="wheelCanvas" width="250" height="250"></canvas>
-
-    <div style="margin: 15px 0;">
-      <label for="chanceSlider">Заявленный шанс: <span id="chanceDisplay">50</span>%</label>
-      <input type="range" id="chanceSlider" min="1" max="99" value="50" step="1" style="width:100%;" />
-    </div>
-
-    <div style="font-size:0.95rem; color:#aaa;">
-      Коэффициент: <span id="coefficientDisplay">1.95</span>x<br />
-      Реальный шанс (с учётом цены): <span id="hiddenChanceDisplay">50.0</span>%
-    </div>
-
-    <div id="modalResult" class="result"></div>
-    <button onclick="confirmUpgrade()" id="upgradeBtn" class="upgrade-btn">КРУТИТЬ!</button>
-    <br />
-    <button class="close-btn" onclick="closeModal()">Закрыть</button>
-  </div>
 </div>
 
 <script src="client.js"></script>

@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 
 app.use(session({
-  secret: 'casino_secret_key_2026',
+  secret: 'dice_of_kalma_secret_2026',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
@@ -22,37 +22,21 @@ app.use(session({
 const db = new sqlite3.Database('./database.db');
 
 db.serialize(() => {
+  // Пользователи
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS inventory (
+  // Прогресс игрока (уровень, лимит, инвентарь)
+  db.run(`CREATE TABLE IF NOT EXISTS player_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    name TEXT,
-    price INTEGER,
-    rarity INTEGER,
+    user_id INTEGER UNIQUE,
     level INTEGER DEFAULT 1,
+    limit_score INTEGER DEFAULT 100,
+    inventory TEXT DEFAULT '[]', -- JSON массив предметов
     FOREIGN KEY(user_id) REFERENCES users(id)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS item_pool (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    base_price INTEGER,
-    rarity INTEGER
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS upgrade_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    item_name TEXT,
-    old_level INTEGER,
-    new_level INTEGER,
-    win BOOLEAN,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 });
 
@@ -67,97 +51,60 @@ function getUser(req) {
   });
 }
 
-function getInventory(userId) {
+function getPlayerData(userId) {
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM inventory WHERE user_id = ?', [userId], (err, rows) => {
+    db.get('SELECT * FROM player_data WHERE user_id = ?', [userId], (err, row) => {
       if (err) reject(err);
-      else resolve(rows);
+      else resolve(row);
     });
   });
 }
 
-function getLatestHistory(limit = 20) {
+function createPlayerData(userId) {
   return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT * FROM upgrade_history ORDER BY timestamp DESC LIMIT ?`,
-      [limit],
-      (err, rows) => {
+    db.run(
+      'INSERT INTO player_data (user_id, level, limit_score, inventory) VALUES (?, 1, 100, ?)',
+      [userId, JSON.stringify([])],
+      function(err) {
         if (err) reject(err);
-        else resolve(rows);
+        else resolve(this.lastID);
       }
     );
   });
 }
 
-// ===== ГЕНЕРАЦИЯ ПУЛА ПРЕДМЕТОВ =====
-function generateItemPool() {
-  const prefixes = ['Тенистый', 'Лунный', 'Огненный', 'Ледяной', 'Кровавый', 'Золотой', 'Древний', 'Космический', 'Призрачный', 'Божественный'];
-  const suffixes = ['Клинок', 'Щит', 'Амулет', 'Кольцо', 'Посох', 'Меч', 'Лук', 'Кинжал', 'Топор', 'Молот'];
-  const items = [];
-  for (let i = 0; i < 200; i++) {
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-    const name = `${prefix} ${suffix}`;
-    const rarity = Math.floor(Math.random() * 1000) + 1;
-    const base_price = Math.floor(rarity * 1.5 + Math.random() * 100);
-    items.push({ name, base_price, rarity });
-  }
-  const unique = [];
-  const seen = new Set();
-  for (const item of items) {
-    if (!seen.has(item.name)) {
-      seen.add(item.name);
-      unique.push(item);
-    }
-  }
-  db.run('DELETE FROM item_pool', (err) => {
-    if (err) console.error('Ошибка очистки item_pool:', err);
-    const stmt = db.prepare('INSERT INTO item_pool (name, base_price, rarity) VALUES (?, ?, ?)');
-    for (const item of unique) {
-      stmt.run(item.name, item.base_price, item.rarity);
-    }
-    stmt.finalize();
-    console.log(`✅ Сгенерировано ${unique.length} предметов в пуле`);
-  });
-}
-
-db.get('SELECT COUNT(*) as count FROM item_pool', (err, row) => {
-  if (err) console.error(err);
-  else if (row.count === 0) {
-    generateItemPool();
-  }
-});
-
 // ===== API =====
+
+// Получить текущего пользователя
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  res.json({ username: user.username });
+  const data = await getPlayerData(user.id);
+  res.json({
+    username: user.username,
+    level: data ? data.level : 1,
+    limit_score: data ? data.limit_score : 100,
+    inventory: data ? JSON.parse(data.inventory) : []
+  });
 });
 
+// Регистрация
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
   try {
     const hash = await bcrypt.hash(password, 10);
-    db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], function(err) {
+    db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], async function(err) {
       if (err) return res.status(400).json({ error: 'Пользователь уже существует' });
-      db.all('SELECT * FROM item_pool ORDER BY RANDOM() LIMIT 3', (err2, items) => {
-        if (!err2 && items) {
-          const stmt = db.prepare('INSERT INTO inventory (user_id, name, price, rarity, level) VALUES (?, ?, ?, ?, ?)');
-          for (const item of items) {
-            stmt.run(this.lastID, item.name, item.base_price, item.rarity, 1);
-          }
-          stmt.finalize();
-        }
-        res.json({ success: true });
-      });
+      await createPlayerData(this.lastID);
+      res.json({ success: true });
     });
   } catch (e) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
+// Вход
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
@@ -169,104 +116,46 @@ app.post('/login', (req, res) => {
   });
 });
 
+// Выход
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.json({ success: true });
 });
 
-app.get('/inventory', async (req, res) => {
+// Обновить прогресс (после победы/поражения)
+app.post('/update-progress', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const items = await getInventory(user.id);
-  res.json(items);
+  const { level, limit_score, inventory } = req.body;
+  db.run(
+    'UPDATE player_data SET level = ?, limit_score = ?, inventory = ? WHERE user_id = ?',
+    [level, limit_score, JSON.stringify(inventory), user.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'Ошибка БД' });
+      res.json({ success: true });
+    }
+  );
 });
 
-app.get('/history', async (req, res) => {
-  const history = await getLatestHistory(20);
-  res.json(history);
-});
-
+// Добавить предмет в инвентарь (при победе)
 app.post('/add-item', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { name, price, rarity } = req.body;
+  const { name, price } = req.body;
   if (!name) return res.status(400).json({ error: 'Введите название' });
-  db.run('INSERT INTO inventory (user_id, name, price, rarity, level) VALUES (?, ?, ?, ?, 1)',
-    [user.id, name, price || 100, rarity || 500],
+
+  const data = await getPlayerData(user.id);
+  const inventory = data ? JSON.parse(data.inventory) : [];
+  inventory.push({ name, price: price || 100, level: 1 });
+
+  db.run(
+    'UPDATE player_data SET inventory = ? WHERE user_id = ?',
+    [JSON.stringify(inventory), user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      res.json({ success: true, id: this.lastID });
-    });
-});
-
-app.post('/delete-item', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { itemId } = req.body;
-  db.run('DELETE FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Ошибка БД' });
-    res.json({ success: true });
-  });
-});
-
-// ===== ИСПРАВЛЕННЫЙ ЭНДПОИНТ: теперь обновляем и цену =====
-app.post('/force-upgrade', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { itemId, newLevel, newPrice } = req.body;
-  if (!itemId || !newLevel || !newPrice) return res.status(400).json({ error: 'Некорректные данные' });
-
-  const item = await new Promise((resolve, reject) => {
-    db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-  if (!item) return res.status(404).json({ error: 'Предмет не найден' });
-
-  const oldLevel = item.level;
-  const oldPrice = item.price;
-  await new Promise((resolve, reject) => {
-    db.run('UPDATE inventory SET level = ?, price = ? WHERE id = ?', [newLevel, newPrice, itemId], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-
-  db.run(
-    'INSERT INTO upgrade_history (username, item_name, old_level, new_level, win) VALUES (?, ?, ?, ?, ?)',
-    [user.username, item.name, oldLevel, newLevel, 1]
+      res.json({ success: true });
+    }
   );
-  res.json({ success: true });
-});
-
-app.post('/record-lose', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { itemId } = req.body;
-  if (!itemId) return res.status(400).json({ error: 'Некорректные данные' });
-
-  const item = await new Promise((resolve, reject) => {
-    db.get('SELECT * FROM inventory WHERE id = ? AND user_id = ?', [itemId, user.id], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-  if (!item) return res.status(404).json({ error: 'Предмет не найден' });
-
-  db.run(
-    'INSERT INTO upgrade_history (username, item_name, old_level, new_level, win) VALUES (?, ?, ?, ?, ?)',
-    [user.username, item.name, item.level, item.level, 0]
-  );
-  res.json({ success: true });
-});
-
-app.get('/random-items', async (req, res) => {
-  const count = parseInt(req.query.count) || 5;
-  db.all('SELECT * FROM item_pool ORDER BY RANDOM() LIMIT ?', [count], (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Ошибка БД' });
-    res.json(rows);
-  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

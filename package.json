@@ -1,7 +1,7 @@
 {
-  "name": "csgo-upgrader",
+  "name": "dice-of-kalma",
   "version": "1.0.0",
-  "description": "Casino-style upgrader with wheel",
+  "description": "Dice of Kalma — веб-версия",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
