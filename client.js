@@ -358,7 +358,6 @@ function playHand() {
   document.getElementById('resultMessage').className = 'result info';
 
   updateStatsAfterGame(handType, false);
-  // Проверяем задания после каждого хода
   checkQuestProgress(handType, false, 0);
 
   if (handsLeft === 0) {
@@ -390,7 +389,6 @@ function playHand() {
       stats.total_games++;
       saveProgress();
 
-      // Проверяем задания ещё раз с учётом победы и повышения уровня
       checkQuestProgress(handType, true, levelGain);
 
       showUpgradeModal();
@@ -476,7 +474,6 @@ function checkQuestProgress(handType, win, levelGain = 0) {
         const id = q.quest_id;
         console.log(`📌 Задание: ${q.desc}, id: ${id}, прогресс: ${q.progress}/${q.target}, handType: ${handType}`);
         
-        // Обработка комбинаций
         if (id.startsWith('pair_') && handType === 'pair') {
           increment = 1;
           console.log('✅ ПАРА: подходит');
@@ -536,13 +533,10 @@ function checkQuestProgress(handType, win, levelGain = 0) {
               showMessage(`🎉 Задание выполнено! +${q.reward} монет!`, 'success');
               spawnCoinParticles();
               loadCoins();
-              // Обновляем модалку, если открыта
               if (questsModalOpen) loadQuestsForModal();
             }
           })
           .catch(err => console.error('Ошибка обновления задания:', err));
-        } else {
-          console.log(`⏭️ Задание ${id} не подходит под текущие условия.`);
         }
       });
     })
@@ -576,12 +570,20 @@ function loadQuestsForModal() {
     .catch(err => console.error('Ошибка загрузки заданий для модалки:', err));
 }
 
-// ===== МОНЕТЫ =====
+// ===== МОНЕТЫ (с обработкой 401) =====
 function loadCoins() {
   fetch('/user')
-    .then(res => res.json())
+    .then(res => {
+      if (res.status === 401) {
+        // Сессия истекла – выходим
+        showMessage('⏳ Сессия истекла, войдите заново', 'error');
+        logout();
+        return null;
+      }
+      return res.json();
+    })
     .then(data => {
-      if (data.coins !== undefined) {
+      if (data && data.coins !== undefined) {
         coins = data.coins;
         document.getElementById('coinsDisplay').textContent = coins;
       }
@@ -763,10 +765,11 @@ function closeQuests() {
 
 // ===== КНОПКА "ЗАБРАТЬ НАГРАДЫ" =====
 function claimRewards() {
+  // Обновляем монеты и задания
   loadCoins();
-  showMessage('🪙 Награды получены!', 'success');
-  // Также обновляем список заданий, чтобы скрыть выполненные
   if (questsModalOpen) loadQuestsForModal();
+  showMessage('🪙 Все доступные награды получены!', 'success');
+  spawnCoinParticles();
 }
 
 // ===== ОТОБРАЖЕНИЕ =====
@@ -966,6 +969,8 @@ async function loadGameData(){
       startRound();
       setInterval(loadChat,5000);
       setInterval(loadCoins,10000);
+    } else if (res.status === 401) {
+      logout();
     }
   } catch(e){ showMessage('Ошибка загрузки данных','error'); }
 }
@@ -1017,6 +1022,8 @@ async function fetchUser(){
         setInterval(loadChat,5000);
         setInterval(loadCoins,10000);
       }
+    } else if (res.status === 401) {
+      logout();
     }
   } catch(e){}
 }
