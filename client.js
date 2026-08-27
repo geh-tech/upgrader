@@ -358,6 +358,7 @@ function playHand() {
   document.getElementById('resultMessage').className = 'result info';
 
   updateStatsAfterGame(handType, false);
+  // ВАЖНО: проверяем задания после каждого хода
   checkQuestProgress(handType, false, 0);
 
   if (handsLeft === 0) {
@@ -389,6 +390,7 @@ function playHand() {
       stats.total_games++;
       saveProgress();
 
+      // Проверяем задания ещё раз с учётом победы и повышения уровня
       checkQuestProgress(handType, true, levelGain);
 
       showUpgradeModal();
@@ -461,7 +463,7 @@ function updateStatsAfterGame(handType, win) {
   }
 }
 
-// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА =====
+// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА С ПОДРОБНЫМИ ЛОГАМИ =====
 function checkQuestProgress(handType, win, levelGain = 0) {
   console.log('🔍 Проверка заданий...', { handType, win, levelGain });
   fetch('/quests')
@@ -472,39 +474,53 @@ function checkQuestProgress(handType, win, levelGain = 0) {
         if (q.completed) return;
         let increment = 0;
         const id = q.quest_id;
-        console.log(`📌 Задание: ${q.desc}, тип: ${id}, текущий прогресс: ${q.progress}/${q.target}`);
+        console.log(`📌 Задание: ${q.desc}, id: ${id}, прогресс: ${q.progress}/${q.target}, handType: ${handType}`);
         
         // Обработка комбинаций
-        if (id.startsWith('pair_')) {
-          if (handType === 'pair') increment = 1;
-        } else if (id.startsWith('two_pair_')) {
-          if (handType === 'twoPair' || handType === 'poker') increment = 1;
-        } else if (id.startsWith('three_')) {
-          if (handType === 'three') increment = 1;
-        } else if (id.startsWith('straight_')) {
-          if (handType === 'straight') increment = 1;
-        } else if (id.startsWith('full_house_')) {
-          if (handType === 'fullHouse') increment = 1;
-        } else if (id.startsWith('four_')) {
-          if (handType === 'four') increment = 1;
-        } else if (id.startsWith('five_')) {
-          if (handType === 'five') increment = 1;
-        } else if (id.startsWith('broken_straight_')) {
-          if (handType === 'brokenStraight') increment = 1;
-        } else if (id.startsWith('poker_')) {
-          if (handType === 'poker' || handType === 'twoPair') increment = 1;
-        } else if (id.startsWith('royal_')) {
-          if (handType === 'royal') increment = 1;
-        } else if (id.startsWith('win_')) {
-          if (win) increment = 1;
-        } else if (id.startsWith('streak_')) {
-          if (win) increment = stats.current_streak;
+        if (id.startsWith('pair_') && handType === 'pair') {
+          increment = 1;
+          console.log('✅ ПАРА: подходит');
+        } else if (id.startsWith('two_pair_') && (handType === 'twoPair' || handType === 'poker')) {
+          increment = 1;
+          console.log('✅ ДВЕ ПАРЫ/ПОКЕР: подходит');
+        } else if (id.startsWith('three_') && handType === 'three') {
+          increment = 1;
+          console.log('✅ ТРОЙКА: подходит');
+        } else if (id.startsWith('straight_') && handType === 'straight') {
+          increment = 1;
+          console.log('✅ СТРИТ: подходит');
+        } else if (id.startsWith('full_house_') && handType === 'fullHouse') {
+          increment = 1;
+          console.log('✅ ФУЛЛ-ХАУС: подходит');
+        } else if (id.startsWith('four_') && handType === 'four') {
+          increment = 1;
+          console.log('✅ КАРЕ: подходит');
+        } else if (id.startsWith('five_') && handType === 'five') {
+          increment = 1;
+          console.log('✅ ПЯТЬ ОДИНАКОВЫХ: подходит');
+        } else if (id.startsWith('broken_straight_') && handType === 'brokenStraight') {
+          increment = 1;
+          console.log('✅ ЛОМАНЫЙ СТРИТ: подходит');
+        } else if (id.startsWith('poker_') && (handType === 'poker' || handType === 'twoPair')) {
+          increment = 1;
+          console.log('✅ ПОКЕР: подходит');
+        } else if (id.startsWith('royal_') && handType === 'royal') {
+          increment = 1;
+          console.log('✅ РОЯЛЬ: подходит');
+        } else if (id.startsWith('win_') && win) {
+          increment = 1;
+          console.log('✅ ПОБЕДА: подходит');
+        } else if (id.startsWith('streak_') && win) {
+          increment = stats.current_streak;
+          console.log(`✅ СТРИК: текущий стрик ${stats.current_streak}, прирост ${increment}`);
         } else if (id.startsWith('total_games_')) {
           increment = 1;
-        } else if (id.startsWith('level_up_')) {
-          if (levelGain > 0) increment = levelGain;
+          console.log('✅ ОБЩЕЕ КОЛИЧЕСТВО ИГР: подходит');
+        } else if (id.startsWith('level_up_') && levelGain > 0) {
+          increment = levelGain;
+          console.log(`✅ ПОВЫШЕНИЕ УРОВНЯ: прирост ${increment}`);
         } else {
-          console.log(`⚠️ Неизвестный тип задания: ${id}`);
+          console.log(`⏭️ Задание ${id} не подходит под текущие условия.`);
         }
 
         if (increment > 0) {
@@ -520,7 +536,8 @@ function checkQuestProgress(handType, win, levelGain = 0) {
               showMessage(`🎉 Задание выполнено! +${q.reward} монет!`, 'success');
               spawnCoinParticles();
               loadCoins();
-              loadQuestsForModal();
+              // Обновляем модалку, если открыта
+              if (questsModalOpen) loadQuestsForModal();
             }
           })
           .catch(err => console.error('Ошибка обновления задания:', err));
