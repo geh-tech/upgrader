@@ -213,10 +213,10 @@ function generateShopItems() {
 const SHOP_ITEMS = generateShopItems();
 console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
 
-// ===== ГЕНЕРАЦИЯ ЛЁГКИХ ЗАДАНИЙ (все по 1 разу, кроме побед и стриков) =====
+// ===== ГЕНЕРАЦИЯ ЛЁГКИХ ЗАДАНИЙ =====
 function generateAchievements() {
   const achievements = [];
-  // Базовые задания для комбинаций – достаточно 1 раза
+  // Комбинации – достаточно 1 раза
   const comboTypes = [
     { id: 'pair', desc: 'Выбросить пару', target: 1, reward: 10 },
     { id: 'two_pair', desc: 'Выбросить две пары', target: 1, reward: 15 },
