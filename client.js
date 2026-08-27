@@ -4,8 +4,6 @@ let level = 1;
 let limit = 50;
 let coins = 0;
 let inventory = [];
-let permanentUpgrades = [];
-let shopProgress = {};
 let dice = [0,0,0,0,0];
 let selectedDice = [false,false,false,false,false];
 let rerollsLeft = 3;
@@ -40,7 +38,7 @@ let passiveBonuses = {
   combo_bones_mult:null, extra_level:0
 };
 
-// ===== ГЕНЕРАЦИЯ УЛУЧШЕНИЙ (для модалки) =====
+// ===== ГЕНЕРАЦИЯ УЛУЧШЕНИЙ (для модалки и магазина) =====
 function generateAllUpgrades() {
   const upgrades = [];
   const handTypes = ['high','pair','twoPair','three','straight','fullHouse','four','five','brokenStraight','poker','royal'];
@@ -224,45 +222,14 @@ function getHandName(type) {
   return names[type]||type;
 }
 
-// ===== СБРОС ИГРЫ (при поражении) =====
+// ===== СБРОС ИГРЫ =====
 function resetGame() {
   level = 1;
-  const handsBonus = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_hand_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const rerollsBonus = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_passive_rerolls_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const bonesBonus = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_passive_bones_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const multBonus = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_passive_mult_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const limitReduction = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_passive_limit_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const extraLevelBonus = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_passive_extra_level_'))
-    .reduce((sum, p) => sum + p.value, 0);
-  const comboBones = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_combo_'))
-    .reduce((sum, p) => sum + (p.value.bones || 0), 0);
-  const comboMult = Object.values(shopProgress)
-    .filter(p => p.id && p.id.startsWith('shop_combo_'))
-    .reduce((sum, p) => sum + (p.value.mult || 0), 0);
-
-  baseHands = 3 + handsBonus;
-  passiveBonuses.rerolls = rerollsBonus;
-  passiveBonuses.bones = bonesBonus + comboBones;
-  passiveBonuses.mult = multBonus + comboMult;
-  passiveBonuses.extra_hands = handsBonus;
-  passiveBonuses.extra_level = extraLevelBonus;
-  limit = 50 - limitReduction;
-  if (limit < 10) limit = 10;
-
-  inventory = [];
   handUpgrades = { high:0, pair:0, twoPair:0, three:0, straight:0, fullHouse:0, four:0, five:0, brokenStraight:0, poker:0, royal:0 };
+  passiveBonuses = { bones:0, mult:0, rerolls:0, extra_hands:0, limit_reduce:0, combo_bones_mult:null, extra_level:0 };
+  baseHands = 3;
+  limit = 50;
+  inventory = [];
   stats = { total_wins:0, total_games:0, current_streak:0, best_streak:0, pair_count:0, two_pair_count:0, three_count:0, straight_count:0, full_house_count:0, four_count:0, five_count:0, broken_straight_count:0, poker_count:0, royal_count:0 };
   document.getElementById('levelDisplay').textContent = level;
   document.getElementById('limitDisplay').textContent = limit;
@@ -461,7 +428,7 @@ function updateStatsAfterGame(handType, win) {
   }
 }
 
-// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА =====
+// ===== АЧИВКИ (ЗАДАНИЯ) =====
 function checkQuestProgress(handType, win, levelGain = 0) {
   console.log('🔍 Проверка заданий...', { handType, win, levelGain });
   fetch('/quests')
@@ -570,12 +537,11 @@ function loadQuestsForModal() {
     .catch(err => console.error('Ошибка загрузки заданий для модалки:', err));
 }
 
-// ===== МОНЕТЫ (с обработкой 401) =====
+// ===== МОНЕТЫ =====
 function loadCoins() {
   fetch('/user')
     .then(res => {
       if (res.status === 401) {
-        // Сессия истекла – выходим
         showMessage('⏳ Сессия истекла, войдите заново', 'error');
         logout();
         return null;
@@ -591,7 +557,7 @@ function loadCoins() {
     .catch(err => console.error('Ошибка загрузки монет:', err));
 }
 
-// ===== УЛУЧШЕНИЯ (МОДАЛКА) =====
+// ===== УЛУЧШЕНИЯ (МОДАЛКА ПРИ ПОБЕДЕ) =====
 function showUpgradeModal(){
   const shuffled=[...ALL_UPGRADES].sort(()=>Math.random()-0.5);
   const selected=shuffled.slice(0,3);
@@ -641,44 +607,40 @@ function applyUpgrade(index){
   setTimeout(()=>startRound(),500);
 }
 
-// ===== МАГАЗИН =====
-async function showShop() {
-  try {
-    const res = await fetch('/shop-items');
-    const items = await res.json();
-    if (!items.length) return;
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.id = 'shopModal';
-    modal.innerHTML = `
-      <div class="modal-content shop-modal-content">
-        <h2>🛒 Магазин вечных улучшений</h2>
-        <p style="text-align:center;color:#aaa;margin-bottom:15px;">Цена увеличивается на 5 после каждой покупки</p>
-        <div id="shopItems" style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto;">
-          ${items.map(item => `
-            <div class="shop-item" style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:12px;padding:12px 16px;border:1px solid rgba(255,255,255,0.06);">
-              <div>
-                <div style="font-weight:600;color:#ffd700;">${item.name}</div>
-                <div style="font-size:0.85rem;color:#aaa;">${item.desc}</div>
-                <div style="font-size:0.75rem;color:#888;">Куплено: ${item.count || 0}</div>
-              </div>
-              <button class="buy-btn" data-id="${item.id}" style="padding:6px 18px;border:none;border-radius:20px;background:linear-gradient(135deg,#ffd700,#f0a500);color:#111;font-weight:bold;cursor:pointer;">Купить (${item.currentPrice}🪙)</button>
+// ===== МАГАЗИН (покупка временных улучшений за монеты) =====
+function showShop() {
+  // Показываем 3 случайных предмета из ALL_UPGRADES
+  const shuffled = [...ALL_UPGRADES].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, 3);
+  const modal = document.createElement('div');
+  modal.className = 'modal active';
+  modal.id = 'shopModal';
+  modal.innerHTML = `
+    <div class="modal-content shop-modal-content">
+      <h2>🛒 Магазин улучшений</h2>
+      <p style="text-align:center;color:#aaa;margin-bottom:15px;">Выберите предмет для покупки (цена: 5 монет)</p>
+      <div id="shopOptions" style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto;">
+        ${selected.map((item, index) => `
+          <div class="shop-option" data-index="${index}" style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px 16px;border:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:600;color:#ffd700;">${item.name}</div>
+              <div style="font-size:0.85rem;color:#aaa;">${item.desc}</div>
             </div>
-          `).join('')}
-        </div>
-        <button onclick="closeShop()" class="close-btn" style="margin-top:15px;display:block;margin-left:auto;margin-right:auto;padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+            <button class="buy-shop-btn" data-id="${item.id}" data-price="5" style="padding:6px 18px;border:none;border-radius:20px;background:linear-gradient(135deg,#ffd700,#f0a500);color:#111;font-weight:bold;cursor:pointer;">Купить (5🪙)</button>
+          </div>
+        `).join('')}
       </div>
-    `;
-    document.body.appendChild(modal);
-    modal.querySelectorAll('.buy-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const itemId = btn.dataset.id;
-        buyPermanentUpgrade(itemId);
-      });
+      <button onclick="closeShop()" class="close-btn" style="margin-top:15px;display:block;margin-left:auto;margin-right:auto;padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  // Обработчики кнопок покупки
+  modal.querySelectorAll('.buy-shop-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const itemId = btn.dataset.id;
+      buyUpgradeFromShop(itemId);
     });
-  } catch(e) {
-    showMessage('Ошибка загрузки магазина','error');
-  }
+  });
 }
 
 function closeShop() {
@@ -686,7 +648,7 @@ function closeShop() {
   if (modal) modal.remove();
 }
 
-async function buyPermanentUpgrade(itemId) {
+async function buyUpgradeFromShop(itemId) {
   try {
     const res = await fetch('/buy-upgrade', {
       method: 'POST',
@@ -695,15 +657,35 @@ async function buyPermanentUpgrade(itemId) {
     });
     const data = await res.json();
     if (data.success) {
-      showMessage(`✅ Куплено вечное улучшение! Новая цена: ${data.newPrice} 🪙`,'success');
+      showMessage(`✅ Предмет куплен!`, 'success');
       coins = data.coins;
       document.getElementById('coinsDisplay').textContent = coins;
-      shopProgress = data.shopProgress;
-      resetGame();
+      // Обновляем инвентарь
+      inventory = data.inventory;
+      renderInventory();
       closeShop();
-      showShop();
+      // Также обновляем бонусы, чтобы они сразу применялись
+      // Применяем только что купленный предмет
+      const upgrade = ALL_UPGRADES.find(u => u.id === itemId);
+      if (upgrade) {
+        if (upgrade.type === 'hand') {
+          handUpgrades[upgrade.hand] = (handUpgrades[upgrade.hand] || 0) + upgrade.value;
+        } else if (upgrade.type === 'passive') {
+          const bonus = upgrade.bonus;
+          const value = upgrade.value;
+          if (bonus === 'combo_bones_mult') {
+            if (!passiveBonuses.combo_bones_mult) passiveBonuses.combo_bones_mult = { bones:0, mult:0 };
+            passiveBonuses.combo_bones_mult.bones += value.bones;
+            passiveBonuses.combo_bones_mult.mult += value.mult;
+          } else {
+            passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) + value;
+          }
+        }
+        // Пересчитываем отображение
+        updateStatsDisplay();
+      }
     } else {
-      showMessage(data.error || 'Ошибка', 'error');
+      showMessage(data.error || 'Ошибка покупки', 'error');
     }
   } catch(e) {
     showMessage('Ошибка соединения', 'error');
@@ -763,9 +745,7 @@ function closeQuests() {
   }
 }
 
-// ===== КНОПКА "ЗАБРАТЬ НАГРАДЫ" =====
 function claimRewards() {
-  // Обновляем монеты и задания
   loadCoins();
   if (questsModalOpen) loadQuestsForModal();
   showMessage('🪙 Все доступные награды получены!', 'success');
@@ -818,8 +798,6 @@ async function saveProgress(){
       body:JSON.stringify({
         level, limit_score:limit, inventory,
         hand_upgrades:handUpgrades, passive_bonuses:passiveBonuses,
-        permanent_upgrades:permanentUpgrades,
-        shop_progress:shopProgress,
         stats, coins
       })
     });
@@ -954,13 +932,7 @@ async function loadGameData(){
       inventory=data.inventory||[];
       handUpgrades=data.hand_upgrades||{ high:0, pair:0, twoPair:0, three:0, straight:0, fullHouse:0, four:0, five:0, brokenStraight:0, poker:0, royal:0 };
       passiveBonuses=data.passive_bonuses||{ bones:0, mult:0, rerolls:0, extra_hands:0, limit_reduce:0, combo_bones_mult:null, extra_level:0 };
-      permanentUpgrades=data.permanent_upgrades||[];
-      shopProgress=data.shop_progress||{};
       stats=data.stats||stats;
-      const handsBonus = Object.values(shopProgress)
-        .filter(p => p.id && p.id.startsWith('shop_hand_'))
-        .reduce((sum, p) => sum + p.value, 0);
-      baseHands = 3 + handsBonus;
       document.getElementById('levelDisplay').textContent=level;
       document.getElementById('limitDisplay').textContent=limit;
       document.getElementById('coinsDisplay').textContent=coins;
@@ -1006,13 +978,7 @@ async function fetchUser(){
         inventory=data.inventory||[];
         handUpgrades=data.hand_upgrades||{ high:0, pair:0, twoPair:0, three:0, straight:0, fullHouse:0, four:0, five:0, brokenStraight:0, poker:0, royal:0 };
         passiveBonuses=data.passive_bonuses||{ bones:0, mult:0, rerolls:0, extra_hands:0, limit_reduce:0, combo_bones_mult:null, extra_level:0 };
-        permanentUpgrades=data.permanent_upgrades||[];
-        shopProgress=data.shop_progress||{};
         stats=data.stats||stats;
-        const handsBonus = Object.values(shopProgress)
-          .filter(p => p.id && p.id.startsWith('shop_hand_'))
-          .reduce((sum, p) => sum + p.value, 0);
-        baseHands = 3 + handsBonus;
         document.getElementById('levelDisplay').textContent=level;
         document.getElementById('limitDisplay').textContent=limit;
         document.getElementById('coinsDisplay').textContent=coins;

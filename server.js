@@ -35,8 +35,6 @@ db.serialize(() => {
     inventory TEXT DEFAULT '[]',
     hand_upgrades TEXT DEFAULT '{}',
     passive_bonuses TEXT DEFAULT '{}',
-    permanent_upgrades TEXT DEFAULT '[]',
-    shop_progress TEXT DEFAULT '{}',
     coins INTEGER DEFAULT 0,
     last_visit DATE,
     tutorial_shown INTEGER DEFAULT 0,
@@ -69,7 +67,6 @@ db.serialize(() => {
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // ===== ИСПРАВЛЕНИЕ: добавляем колонку target =====
   db.run(`CREATE TABLE IF NOT EXISTS daily_quests (
     user_id INTEGER,
     quest_id INTEGER,
@@ -112,8 +109,8 @@ function getPlayerData(userId) {
 function createPlayerData(userId) {
   return new Promise((resolve, reject) => {
     db.run(
-      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, permanent_upgrades, shop_progress, coins, tutorial_shown) VALUES (?, 1, 50, ?, ?, ?, ?, ?, 0, 0)',
-      [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({}), JSON.stringify([]), JSON.stringify({})],
+      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, coins, tutorial_shown) VALUES (?, 1, 50, ?, ?, ?, 0, 0)',
+      [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({})],
       function(err) {
         if (err) reject(err);
         else resolve(this.lastID);
@@ -140,82 +137,73 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА =====
-function generateShopItems() {
-  const items = [];
-  const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
+// ===== ГЕНЕРАЦИЯ ВСЕХ ВОЗМОЖНЫХ УЛУЧШЕНИЙ (для магазина и прокачки) =====
+const ALL_UPGRADES = (function generateAllUpgrades() {
+  const upgrades = [];
+  const handTypes = ['high','pair','twoPair','three','straight','fullHouse','four','five','brokenStraight','poker','royal'];
   const handNames = {
     high:'Старшая карта', pair:'Пара', twoPair:'Две пары', three:'Тройка',
     straight:'Стрит', fullHouse:'Фулл-хаус', four:'Каре', five:'Пять одинаковых',
     brokenStraight:'Ломаный стрит', poker:'Покер', royal:'Рояль'
   };
-  for (const hand of handTypes) {
-    items.push({
-      id: `shop_hand_${hand}_1`,
-      name: `Вечный +1 к ${handNames[hand]}`,
-      desc: `Навсегда +1 множителя для ${handNames[hand]}`,
-      type: 'hand',
-      hand: hand,
-      value: 1,
-      basePrice: 5
-    });
-  }
-  const passives = [
-    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10, 15] },
-    { id: 'mult', name: 'Множитель', values: [1, 2] },
-    { id: 'rerolls', name: 'Перебросы', values: [1, 2] },
-    { id: 'hands', name: 'Руки', values: [1, 2] },
-    { id: 'limit', name: 'Скидка лимита', values: [3, 5, 8, 10] },
-    { id: 'extra_level', name: 'Бонус уровня', values: [1, 2] }
-  ];
-  for (const p of passives) {
-    for (const val of p.values) {
-      items.push({
-        id: `shop_passive_${p.id}_${val}`,
-        name: `Вечный +${val} ${p.name}`,
-        desc: `Навсегда +${val} к ${p.name}`,
-        type: 'passive',
-        bonus: p.id,
-        value: val,
-        basePrice: 5
+  for (let level=1; level<=10; level++) {
+    const bonus=level;
+    for (const hand of handTypes) {
+      upgrades.push({
+        id: `upgrade_hand_${hand}_${level}`,
+        name: `⬆ ${handNames[hand]} +${bonus}x`,
+        type: 'hand',
+        hand: hand,
+        value: bonus,
+        desc: `Множитель +${bonus} для ${handNames[hand]}`
       });
     }
   }
-  const combos = [
-    { b: 2, m: 1 }, { b: 3, m: 2 }, { b: 5, m: 1 }, { b: 5, m: 2 },
-    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }, { b: 12, m: 3 }
-  ];
-  for (let i = 0; i < combos.length; i++) {
-    const c = combos[i];
-    items.push({
-      id: `shop_combo_${i}`,
-      name: `Вечный +${c.b} кости +${c.m} множ`,
-      desc: `Навсегда +${c.b} к костям и +${c.m} к множителю`,
-      type: 'combo',
-      bonus: 'combo_bones_mult',
-      value: { bones: c.b, mult: c.m },
-      basePrice: 5
+  for (let i=1; i<=6; i++) {
+    const val=i*5;
+    upgrades.push({ id:`passive_bones_${i}`, name:`💀 +${val} кости`, type:'passive', bonus:'bones', value:val, desc:`+${val} к костям` });
+  }
+  for (let i=1; i<=5; i++) {
+    upgrades.push({ id:`passive_mult_${i}`, name:`💀 +${i} множитель`, type:'passive', bonus:'mult', value:i, desc:`+${i} к множителю` });
+  }
+  for (let i=1; i<=3; i++) {
+    upgrades.push({ id:`passive_rerolls_${i}`, name:`💀 +${i} переброс`, type:'passive', bonus:'rerolls', value:i, desc:`+${i} к перебросам` });
+  }
+  for (let i=1; i<=2; i++) {
+    upgrades.push({ id:`passive_hands_${i}`, name:`💀 +${i} рука`, type:'passive', bonus:'extra_hands', value:i, desc:`+${i} дополнительная рука` });
+  }
+  upgrades.push({ id:`passive_hands_rare_3`, name:`💀✨ +3 руки`, type:'passive', bonus:'extra_hands', value:3, desc:`+3 дополнительных руки (редкое)` });
+  upgrades.push({ id:`passive_hands_rare_5`, name:`💀✨ +5 рук`, type:'passive', bonus:'extra_hands', value:5, desc:`+5 дополнительных рук (очень редкое)` });
+  for (let i=1; i<=3; i++) {
+    const val=i*10;
+    upgrades.push({ id:`passive_limit_reduce_${i}`, name:`💀 Лимит -${val}`, type:'passive', bonus:'limit_reduce', value:val, desc:`Снижает лимит на ${val} (одноразово)` });
+  }
+  const combos = [{b:5,m:1},{b:10,m:2},{b:15,m:3},{b:20,m:4},{b:25,m:5}];
+  for (let i=0; i<combos.length; i++) {
+    const c=combos[i];
+    upgrades.push({
+      id:`passive_combo_${i}`,
+      name:`💀 +${c.b} кости +${c.m} множ`,
+      type:'passive',
+      bonus:'combo_bones_mult',
+      value:{ bones:c.b, mult:c.m },
+      desc:`+${c.b} к костям и +${c.m} к множителю`
     });
   }
-  const rare = [
-    { id: 'rare_hands_3', name: 'Вечные +3 руки', desc: 'Навсегда +3 руки за раунд', type: 'passive', bonus: 'extra_hands', value: 3 },
-    { id: 'rare_hands_5', name: 'Вечные +5 рук', desc: 'Навсегда +5 рук за раунд', type: 'passive', bonus: 'extra_hands', value: 5 },
-    { id: 'rare_rerolls_3', name: 'Вечные +3 переброса', desc: 'Навсегда +3 переброса за раунд', type: 'passive', bonus: 'rerolls', value: 3 },
-    { id: 'rare_bones_20', name: 'Вечные +20 костей', desc: 'Навсегда +20 к костям', type: 'passive', bonus: 'bones', value: 20 },
-    { id: 'rare_mult_3', name: 'Вечный +3 множитель', desc: 'Навсегда +3 к множителю', type: 'passive', bonus: 'mult', value: 3 },
-    { id: 'rare_limit_15', name: 'Вечная скидка лимита -15', desc: 'Навсегда уменьшает стартовый лимит на 15', type: 'passive', bonus: 'limit', value: 15 },
-    { id: 'rare_extra_level_3', name: 'Вечный +3 уровня при победе', desc: 'Навсегда +3 дополнительных уровня при победе', type: 'passive', bonus: 'extra_level', value: 3 }
-  ];
-  for (const r of rare) {
-    items.push({ ...r, basePrice: 5 });
+  for (let i=1; i<=2; i++) {
+    upgrades.push({
+      id:`passive_extra_level_${i}`,
+      name:`💀 +${i} уровень при победе`,
+      type:'passive',
+      bonus:'extra_level',
+      value:i,
+      desc:`При победе +${i} уровень`
+    });
   }
-  return items;
-}
+  return upgrades;
+})();
 
-const SHOP_ITEMS = generateShopItems();
-console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
-
-// ===== ГЕНЕРАЦИЯ ЛЁГКИХ ЗАДАНИЙ =====
+// ===== ГЕНЕРАЦИЯ ЗАДАНИЙ =====
 function generateAchievements() {
   const achievements = [];
   const comboTypes = [
@@ -283,7 +271,6 @@ function generateAchievements() {
 }
 
 const ALL_ACHIEVEMENTS = generateAchievements();
-console.log(`✅ Сгенерировано ${ALL_ACHIEVEMENTS.length} заданий`);
 
 // ===== API =====
 
@@ -299,8 +286,6 @@ app.get('/user', async (req, res) => {
     inventory: data ? JSON.parse(data.inventory) : [],
     hand_upgrades: data ? JSON.parse(data.hand_upgrades) : {},
     passive_bonuses: data ? JSON.parse(data.passive_bonuses) : {},
-    permanent_upgrades: data ? JSON.parse(data.permanent_upgrades) : [],
-    shop_progress: data ? JSON.parse(data.shop_progress) : {},
     coins: data ? data.coins : 0,
     tutorial_shown: data ? data.tutorial_shown : 0,
     stats: stats
@@ -310,12 +295,12 @@ app.get('/user', async (req, res) => {
 app.post('/update-progress', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { level, limit_score, inventory, hand_upgrades, passive_bonuses, permanent_upgrades, shop_progress, stats, coins } = req.body;
+  const { level, limit_score, inventory, hand_upgrades, passive_bonuses, stats, coins } = req.body;
   db.run(
     `UPDATE player_data 
-     SET level = ?, limit_score = ?, inventory = ?, hand_upgrades = ?, passive_bonuses = ?, permanent_upgrades = ?, shop_progress = ?, coins = ?
+     SET level = ?, limit_score = ?, inventory = ?, hand_upgrades = ?, passive_bonuses = ?, coins = ?
      WHERE user_id = ?`,
-    [level, limit_score, JSON.stringify(inventory), JSON.stringify(hand_upgrades || {}), JSON.stringify(passive_bonuses || {}), JSON.stringify(permanent_upgrades || []), JSON.stringify(shop_progress || {}), coins || 0, user.id],
+    [level, limit_score, JSON.stringify(inventory), JSON.stringify(hand_upgrades || {}), JSON.stringify(passive_bonuses || {}), coins || 0, user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
     }
@@ -339,51 +324,46 @@ app.post('/update-progress', async (req, res) => {
   res.json({ success: true });
 });
 
-// ===== МАГАЗИН =====
-app.get('/shop-items', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const data = await getPlayerData(user.id);
-  const shopProgress = data ? JSON.parse(data.shop_progress || '{}') : {};
-  const itemsWithPrice = SHOP_ITEMS.map(item => {
-    const progress = shopProgress[item.id] || { count: 0, price: item.basePrice };
-    return {
-      ...item,
-      currentPrice: progress.price,
-      count: progress.count
-    };
-  });
-  res.json(itemsWithPrice);
-});
-
+// ===== МАГАЗИН (покупка временных улучшений) =====
 app.post('/buy-upgrade', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   const { itemId } = req.body;
-  const itemDef = SHOP_ITEMS.find(it => it.id === itemId);
+  // Находим предмет в списке всех улучшений
+  const itemDef = ALL_UPGRADES.find(it => it.id === itemId);
   if (!itemDef) return res.status(400).json({ error: 'Товар не найден' });
 
   const data = await getPlayerData(user.id);
   let coins = data.coins || 0;
-  let shopProgress = JSON.parse(data.shop_progress || '{}');
-  let progress = shopProgress[itemId] || { count: 0, price: itemDef.basePrice };
-  if (coins < progress.price) return res.status(400).json({ error: 'Недостаточно монет' });
+  const price = 5; // фиксированная цена за предмет
+  if (coins < price) return res.status(400).json({ error: 'Недостаточно монет' });
 
-  coins -= progress.price;
-  progress.count += 1;
-  progress.price += 5;
-  shopProgress[itemId] = progress;
+  // Списываем монеты
+  coins -= price;
+  // Добавляем предмет в инвентарь (временный)
+  let inventory = JSON.parse(data.inventory || '[]');
+  const inventoryItem = {
+    id: itemDef.id,
+    name: itemDef.name,
+    type: itemDef.type,
+    hand: itemDef.hand || null,
+    bonus: itemDef.bonus || null,
+    value: itemDef.value,
+    desc: itemDef.desc
+  };
+  inventory.push(inventoryItem);
 
   db.run(
-    'UPDATE player_data SET shop_progress = ?, coins = ? WHERE user_id = ?',
-    [JSON.stringify(shopProgress), coins, user.id],
+    'UPDATE player_data SET coins = ?, inventory = ? WHERE user_id = ?',
+    [coins, JSON.stringify(inventory), user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      res.json({ success: true, coins, shopProgress, newPrice: progress.price, count: progress.count });
+      res.json({ success: true, coins, inventory });
     }
   );
 });
 
+// ===== РЕГИСТРАЦИЯ =====
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -397,7 +377,6 @@ app.post('/register', async (req, res) => {
       const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, 5);
       for (const ach of selected) {
-        // ===== ИСПРАВЛЕНИЕ: сохраняем target =====
         db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date, target) VALUES (?, ?, 0, 0, ?, ?)',
           [this.lastID, ach.id, today, ach.target]);
       }
@@ -457,7 +436,7 @@ app.get('/quests', async (req, res) => {
       ...row,
       desc: def ? def.desc : 'Задание',
       reward: def ? def.reward : 10,
-      target: row.target // теперь target есть в таблице
+      target: row.target
     };
   });
   res.json(fullQuests);
@@ -472,12 +451,10 @@ app.post('/quest-progress', async (req, res) => {
     [increment || 1, user.id, questId],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      // ===== ИСПРАВЛЕНИЕ: теперь target доступен в таблице =====
       db.get(
         'SELECT progress, target FROM daily_quests WHERE user_id = ? AND quest_id = ?',
         [user.id, questId],
         (err2, row) => {
-          if (err2) return res.status(500).json({ error: 'Ошибка БД' });
           if (row && row.progress >= row.target) {
             db.run('UPDATE daily_quests SET completed = 1 WHERE user_id = ? AND quest_id = ?', [user.id, questId]);
             const def = ALL_ACHIEVEMENTS.find(a => a.id === questId);
