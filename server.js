@@ -141,31 +141,27 @@ function initStats(userId) {
 // ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА (БЕЗ ДУБЛЕЙ) =====
 function generateShopItems() {
   const items = [];
-  // 1. Улучшения для каждой руки (только по одному, разные руки)
-  const handTypes = ['pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
+  const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
   const handNames = {
-    pair:'Пара', twoPair:'Две пары', three:'Тройка',
+    high:'Старшая карта', pair:'Пара', twoPair:'Две пары', three:'Тройка',
     straight:'Стрит', fullHouse:'Фулл-хаус', four:'Каре', five:'Пять одинаковых',
     brokenStraight:'Ломаный стрит', poker:'Покер', royal:'Рояль'
   };
-  const bonuses = [2, 3, 4, 5]; // разные значения для разных рук
-  for (let i = 0; i < handTypes.length; i++) {
-    const hand = handTypes[i];
-    const bonus = bonuses[i % bonuses.length] + Math.floor(i / bonuses.length);
+  // Для каждой руки только одно улучшение (+2)
+  for (const hand of handTypes) {
     items.push({
-      id: `shop_hand_${hand}`,
-      name: `Вечный +${bonus} к ${handNames[hand]}`,
-      desc: `Навсегда +${bonus} множителя для ${handNames[hand]}`,
+      id: `shop_hand_${hand}_2`,
+      name: `Вечный +2 к ${handNames[hand]}`,
+      desc: `Навсегда +2 множителя для ${handNames[hand]}`,
       type: 'hand',
       hand: hand,
-      value: bonus,
+      value: 2,
       basePrice: 5
     });
   }
-
-  // 2. Пассивные бонусы (разные, без повторений)
+  // Пассивные бонусы (разные значения)
   const passives = [
-    { id: 'bones', name: 'Кости', values: [3, 5, 8, 12] },
+    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10] },
     { id: 'mult', name: 'Множитель', values: [1, 2] },
     { id: 'rerolls', name: 'Перебросы', values: [1, 2] },
     { id: 'hands', name: 'Руки', values: [1, 2] },
@@ -177,7 +173,7 @@ function generateShopItems() {
       items.push({
         id: `shop_passive_${p.id}_${val}`,
         name: `Вечный +${val} ${p.name}`,
-        desc: `Навсегда +${val} к ${p.name}`,
+        desc: `Навсегда +${val} к ${p.name.toLowerCase()}`,
         type: 'passive',
         bonus: p.id,
         value: val,
@@ -185,11 +181,10 @@ function generateShopItems() {
       });
     }
   }
-
-  // 3. Комбинированные (кости+множ) – разные комбинации
+  // Комбинированные (кости+множ) – все варианты
   const combos = [
     { b: 2, m: 1 }, { b: 3, m: 2 }, { b: 5, m: 1 }, { b: 5, m: 2 },
-    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }, { b: 10, m: 3 }
+    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }
   ];
   for (let i = 0; i < combos.length; i++) {
     const c = combos[i];
@@ -203,8 +198,7 @@ function generateShopItems() {
       basePrice: 5
     });
   }
-
-  // 4. Редкие усиления (большие значения)
+  // Редкие усиления (большие значения)
   const rare = [
     { id: 'rare_hands_3', name: 'Вечные +3 руки', desc: 'Навсегда +3 руки за раунд', type: 'passive', bonus: 'extra_hands', value: 3 },
     { id: 'rare_hands_5', name: 'Вечные +5 рук', desc: 'Навсегда +5 рук за раунд', type: 'passive', bonus: 'extra_hands', value: 5 },
@@ -217,14 +211,14 @@ function generateShopItems() {
   for (const r of rare) {
     items.push({ ...r, basePrice: 5 });
   }
-
+  // Итого: 11 (руки) + 6*4 (кости:4 + множ:2 + перебросы:2 + руки:2 + лимит:3 + бонус уровня:2) = 11 + 6*(4+2+2+2+3+2) = 11+6*15=11+90=101 + 7 комбо + 7 редких = 115
   return items;
 }
 
 const SHOP_ITEMS = generateShopItems();
-console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} уникальных предметов магазина`);
+console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
 
-// ===== ГЕНЕРАЦИЯ АЧИВОК =====
+// ===== ГЕНЕРАЦИЯ АЧИВОК (100+) =====
 function generateAchievements() {
   const types = [
     { id: 'win_3', desc: 'Выиграть 3 раунда', target: 3, reward: 10 },
@@ -414,7 +408,7 @@ app.get('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ===== КВЕСТЫ =====
+// ===== КВЕСТЫ (задания) =====
 app.get('/quests', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });

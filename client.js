@@ -223,10 +223,10 @@ function getHandName(type) {
   return names[type]||type;
 }
 
-// ===== СБРОС ИГРЫ (с учётом вечных улучшений из магазина) =====
+// ===== СБРОС ИГРЫ =====
 function resetGame() {
   level=1;
-  // Применяем все вечные бонусы из shopProgress
+  // Применяем вечные бонусы из shopProgress
   const handsBonus = Object.values(shopProgress)
     .filter(p => p.id && p.id.startsWith('shop_hand_'))
     .reduce((sum, p) => sum + p.value, 0);
@@ -582,6 +582,47 @@ async function buyPermanentUpgrade(itemId) {
   }
 }
 
+// ===== КВЕСТЫ (новая функция — модальное окно) =====
+async function showQuests() {
+  try {
+    const res = await fetch('/quests');
+    const quests = await res.json();
+    if (!quests || quests.length === 0) {
+      showMessage('Нет заданий на сегодня', 'info');
+      return;
+    }
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'questsModal';
+    modal.innerHTML = `
+      <div class="modal-content quests-modal-content">
+        <h2>📋 Ежедневные задания</h2>
+        <div id="questsList" style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto;">
+          ${quests.map(q => `
+            <div class="quest-item ${q.completed ? 'completed' : ''}" style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:12px;padding:12px 16px;border:1px solid ${q.completed ? 'rgba(105,219,124,0.3)' : 'rgba(255,255,255,0.06)'};">
+              <div style="flex:1;">
+                <div style="font-weight:600;color:#fff;">${q.desc}</div>
+                <div style="font-size:0.8rem;color:#aaa;">Прогресс: ${q.progress}/${q.target}</div>
+                <div style="font-size:0.75rem;color:#888;">Награда: ${q.reward} монет</div>
+              </div>
+              <div style="font-size:1.2rem;">${q.completed ? '✅' : '⏳'}</div>
+            </div>
+          `).join('')}
+        </div>
+        <button onclick="closeQuests()" class="close-btn" style="margin-top:15px;display:block;margin-left:auto;margin-right:auto;padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } catch(e) {
+    showMessage('Ошибка загрузки заданий','error');
+  }
+}
+
+function closeQuests() {
+  const modal = document.getElementById('questsModal');
+  if (modal) modal.remove();
+}
+
 // ===== ОТОБРАЖЕНИЕ =====
 function updateDiceDisplay(animate=false){
   diceElements.forEach((el,i)=>{
@@ -664,7 +705,7 @@ async function saveProgress(){
   } catch(e){}
 }
 
-// ===== ЛИДЕРБОРД, ЧАТ, ЗАДАНИЯ =====
+// ===== ЛИДЕРБОРД, ЧАТ (оставляем старые панели) =====
 function loadLeaderboard(){
   fetch('/leaderboard')
     .then(res=>res.json())
@@ -708,60 +749,21 @@ function sendMessage(){
   }).then(()=>{ input.value=''; loadChat(); });
 }
 
-function loadQuests(){
-  fetch('/quests')
-    .then(res=>res.json())
-    .then(quests=>{
-      const container=document.getElementById('questsList');
-      container.innerHTML=quests.map(q=>`
-        <div class="quest-item ${q.completed?'completed':''}">
-          <div class="desc">${q.desc}</div>
-          <div class="progress">
-            <div class="progress-bar" style="width:${Math.min(100,(q.progress/q.target)*100)}%"></div>
-          </div>
-          <div class="reward">🎁 ${q.reward} монет</div>
-        </div>
-      `).join('');
-    });
-}
-
-// ===== ПАНЕЛИ (исправлено: создаём панель, если её нет) =====
+// ===== ПАНЕЛИ (оставляем для лидерборда и чата, квесты теперь модалка) =====
 function togglePanel(type) {
-  console.log(`🔘 togglePanel вызван для: ${type}`);
-  // Если панели нет в DOM, создаём её
-  let panel = document.getElementById(`${type}Panel`);
-  if (!panel) {
-    console.warn(`⚠️ Панель ${type}Panel не найдена, создаём динамически`);
-    panel = document.createElement('div');
-    panel.id = `${type}Panel`;
-    panel.className = `slide-panel ${type === 'leaderboard' ? 'left' : 'right'}`;
-    panel.style.transform = type === 'leaderboard' ? 'translateX(-110%)' : 'translateX(110%)';
-    panel.innerHTML = `
-      <div class="panel-header">
-        <h2>${type === 'leaderboard' ? '🏆 Лидерборд' : type === 'chat' ? '💬 Чат' : '📋 Задания'}</h2>
-        <button class="close-panel" onclick="togglePanel('${type}')">✕</button>
-      </div>
-      <div id="${type}List"></div>
-      ${type === 'chat' ? `
-        <div class="chat-input">
-          <input type="text" id="chatInput" placeholder="Сообщение..." maxlength="200" />
-          <button onclick="sendMessage()">Отправить</button>
-        </div>
-      ` : ''}
-    `;
-    document.body.appendChild(panel);
-  }
-
+  const panels = {
+    leaderboard: document.getElementById('leaderboardPanel'),
+    chat: document.getElementById('chatPanel')
+  };
+  const panel = panels[type];
+  if (!panel) return;
   if (panel.classList.contains('open')) {
     panel.classList.remove('open');
   } else {
-    // Закрыть все остальные
-    document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('open'));
+    Object.values(panels).forEach(p => p && p.classList.remove('open'));
     panel.classList.add('open');
-    // Загрузить данные
     if (type === 'leaderboard') loadLeaderboard();
     if (type === 'chat') loadChat();
-    if (type === 'quests') loadQuests();
   }
 }
 
@@ -834,7 +836,6 @@ async function loadGameData(){
       permanentUpgrades=data.permanent_upgrades||[];
       shopProgress=data.shop_progress||{};
       stats=data.stats||stats;
-      // Применяем вечные бонусы
       const handsBonus = Object.values(shopProgress)
         .filter(p => p.id && p.id.startsWith('shop_hand_'))
         .reduce((sum, p) => sum + p.value, 0);
@@ -846,7 +847,6 @@ async function loadGameData(){
       if(!data.tutorial_shown) showTutorial();
       startRound();
       setInterval(loadChat,5000);
-      setInterval(loadQuests,15000);
       setInterval(loadCoins,10000);
     }
   } catch(e){ showMessage('Ошибка загрузки данных','error'); }
@@ -897,10 +897,13 @@ async function fetchUser(){
         if(!data.tutorial_shown) showTutorial();
         startRound();
         setInterval(loadChat,5000);
-        setInterval(loadQuests,15000);
         setInterval(loadCoins,10000);
       }
     }
   } catch(e){}
 }
 fetchUser();
+
+// ===== ПЕРЕНАЗНАЧАЕМ КНОПКУ КВЕСТОВ =====
+// Теперь при клике на 📋 будет открываться модалка showQuests()
+// В index.html нужно изменить onclick на showQuests()
