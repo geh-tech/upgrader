@@ -88,6 +88,7 @@ db.serialize(() => {
   )`);
 });
 
+// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 function getUser(req) {
   return new Promise((resolve, reject) => {
     if (!req.session.userId) return resolve(null);
@@ -110,8 +111,8 @@ function getPlayerData(userId) {
 function createPlayerData(userId) {
   return new Promise((resolve, reject) => {
     db.run(
-      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, permanent_upgrades, shop_progress, coins, last_visit) VALUES (?, 1, 50, ?, ?, ?, ?, ?, 0, ?)',
-      [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({}), JSON.stringify([]), JSON.stringify({}), new Date().toISOString().slice(0,10)],
+      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, permanent_upgrades, shop_progress, coins, tutorial_shown) VALUES (?, 1, 50, ?, ?, ?, ?, ?, 0, 0)',
+      [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({}), JSON.stringify([]), JSON.stringify({})],
       function(err) {
         if (err) reject(err);
         else resolve(this.lastID);
@@ -138,7 +139,7 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА (БЕЗ ДУБЛЕЙ) =====
+// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА (без дублей) =====
 function generateShopItems() {
   const items = [];
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
@@ -147,25 +148,25 @@ function generateShopItems() {
     straight:'Стрит', fullHouse:'Фулл-хаус', four:'Каре', five:'Пять одинаковых',
     brokenStraight:'Ломаный стрит', poker:'Покер', royal:'Рояль'
   };
-  // Для каждой руки только одно улучшение (+2)
+  // Только +1 для каждой руки (чтобы не было дублирования +1 и +2)
   for (const hand of handTypes) {
     items.push({
-      id: `shop_hand_${hand}_2`,
-      name: `Вечный +2 к ${handNames[hand]}`,
-      desc: `Навсегда +2 множителя для ${handNames[hand]}`,
+      id: `shop_hand_${hand}_1`,
+      name: `Вечный +1 к ${handNames[hand]}`,
+      desc: `Навсегда +1 множителя для ${handNames[hand]}`,
       type: 'hand',
       hand: hand,
-      value: 2,
+      value: 1,
       basePrice: 5
     });
   }
   // Пассивные бонусы (разные значения)
   const passives = [
-    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10] },
+    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10, 15] },
     { id: 'mult', name: 'Множитель', values: [1, 2] },
     { id: 'rerolls', name: 'Перебросы', values: [1, 2] },
     { id: 'hands', name: 'Руки', values: [1, 2] },
-    { id: 'limit', name: 'Скидка лимита', values: [3, 5, 8] },
+    { id: 'limit', name: 'Скидка лимита', values: [3, 5, 8, 10] },
     { id: 'extra_level', name: 'Бонус уровня', values: [1, 2] }
   ];
   for (const p of passives) {
@@ -173,7 +174,7 @@ function generateShopItems() {
       items.push({
         id: `shop_passive_${p.id}_${val}`,
         name: `Вечный +${val} ${p.name}`,
-        desc: `Навсегда +${val} к ${p.name.toLowerCase()}`,
+        desc: `Навсегда +${val} к ${p.name}`,
         type: 'passive',
         bonus: p.id,
         value: val,
@@ -181,10 +182,10 @@ function generateShopItems() {
       });
     }
   }
-  // Комбинированные (кости+множ) – все варианты
+  // Комбинированные (кости+множ) – разные варианты
   const combos = [
     { b: 2, m: 1 }, { b: 3, m: 2 }, { b: 5, m: 1 }, { b: 5, m: 2 },
-    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }
+    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }, { b: 12, m: 3 }
   ];
   for (let i = 0; i < combos.length; i++) {
     const c = combos[i];
@@ -203,22 +204,22 @@ function generateShopItems() {
     { id: 'rare_hands_3', name: 'Вечные +3 руки', desc: 'Навсегда +3 руки за раунд', type: 'passive', bonus: 'extra_hands', value: 3 },
     { id: 'rare_hands_5', name: 'Вечные +5 рук', desc: 'Навсегда +5 рук за раунд', type: 'passive', bonus: 'extra_hands', value: 5 },
     { id: 'rare_rerolls_3', name: 'Вечные +3 переброса', desc: 'Навсегда +3 переброса за раунд', type: 'passive', bonus: 'rerolls', value: 3 },
-    { id: 'rare_bones_15', name: 'Вечные +15 костей', desc: 'Навсегда +15 к костям', type: 'passive', bonus: 'bones', value: 15 },
+    { id: 'rare_bones_20', name: 'Вечные +20 костей', desc: 'Навсегда +20 к костям', type: 'passive', bonus: 'bones', value: 20 },
     { id: 'rare_mult_3', name: 'Вечный +3 множитель', desc: 'Навсегда +3 к множителю', type: 'passive', bonus: 'mult', value: 3 },
-    { id: 'rare_limit_10', name: 'Вечная скидка лимита -10', desc: 'Навсегда уменьшает стартовый лимит на 10', type: 'passive', bonus: 'limit', value: 10 },
+    { id: 'rare_limit_15', name: 'Вечная скидка лимита -15', desc: 'Навсегда уменьшает стартовый лимит на 15', type: 'passive', bonus: 'limit', value: 15 },
     { id: 'rare_extra_level_3', name: 'Вечный +3 уровня при победе', desc: 'Навсегда +3 дополнительных уровня при победе', type: 'passive', bonus: 'extra_level', value: 3 }
   ];
   for (const r of rare) {
     items.push({ ...r, basePrice: 5 });
   }
-  // Итого: 11 (руки) + 6*4 (кости:4 + множ:2 + перебросы:2 + руки:2 + лимит:3 + бонус уровня:2) = 11 + 6*(4+2+2+2+3+2) = 11+6*15=11+90=101 + 7 комбо + 7 редких = 115
+  // Итого: 11 + (5+2+2+2+4+2) + 8 + 7 = 11 + 17 + 8 + 7 = 43 предмета, достаточно
   return items;
 }
 
 const SHOP_ITEMS = generateShopItems();
 console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
 
-// ===== ГЕНЕРАЦИЯ АЧИВОК (100+) =====
+// ===== ГЕНЕРАЦИЯ АЧИВОК (заданий) =====
 function generateAchievements() {
   const types = [
     { id: 'win_3', desc: 'Выиграть 3 раунда', target: 3, reward: 10 },
@@ -376,6 +377,7 @@ app.post('/buy-upgrade', async (req, res) => {
   );
 });
 
+// ===== РЕГИСТРАЦИЯ =====
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Заполните все поля' });
@@ -385,6 +387,14 @@ app.post('/register', async (req, res) => {
       if (err) return res.status(400).json({ error: 'Пользователь уже существует' });
       await createPlayerData(this.lastID);
       await initStats(this.lastID);
+      // Создаём задания для нового пользователя на сегодня
+      const today = new Date().toISOString().slice(0,10);
+      const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, 5);
+      for (const ach of selected) {
+        db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date) VALUES (?, ?, 0, 0, ?)',
+          [this.lastID, ach.id, today]);
+      }
       res.json({ success: true });
     });
   } catch (e) {
@@ -408,28 +418,41 @@ app.get('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ===== КВЕСТЫ (задания) =====
+// ===== АЧИВКИ / ЗАДАНИЯ =====
 app.get('/quests', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   const today = new Date().toISOString().slice(0,10);
   const data = await getPlayerData(user.id);
-  if (data.last_visit !== today) {
-    db.run('DELETE FROM daily_quests WHERE user_id = ?', [user.id]);
+  
+  // Проверяем, есть ли задания на сегодня
+  const existing = await new Promise((resolve, reject) => {
+    db.all('SELECT * FROM daily_quests WHERE user_id = ? AND date = ?', [user.id, today], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+
+  if (existing.length === 0) {
+    // Если заданий нет – создаём
     const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 5);
     for (const ach of selected) {
       db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date) VALUES (?, ?, 0, 0, ?)',
         [user.id, ach.id, today]);
     }
+    // Обновляем last_visit
     db.run('UPDATE player_data SET last_visit = ? WHERE user_id = ?', [today, user.id]);
   }
+
+  // Получаем задания с прогрессом
   const questsWithProgress = await new Promise((resolve, reject) => {
-    db.all('SELECT * FROM daily_quests WHERE user_id = ?', [user.id], (err, rows) => {
+    db.all('SELECT * FROM daily_quests WHERE user_id = ? AND date = ?', [user.id, today], (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
   });
+
   const fullQuests = questsWithProgress.map(row => {
     const def = ALL_ACHIEVEMENTS.find(a => a.id === row.quest_id);
     return {

@@ -15,7 +15,7 @@
 <div id="particlesContainer"></div>
 <div id="flashOverlay"></div>
 
-<!-- Боковые панели (создаются динамически, но для стабильности оставляем) -->
+<!-- Боковые панели -->
 <div id="leaderboardPanel" class="slide-panel left">
   <div class="panel-header">
     <h2>🏆 Лидерборд</h2>
@@ -36,7 +36,7 @@
   </div>
 </div>
 
-<div id="questsPanel" class="slide-panel right">
+<div id="questsPanel" class="slide-panel right" style="right: -400px;">
   <div class="panel-header">
     <h2>📋 Задания</h2>
     <button class="close-panel" onclick="togglePanel('quests')">✕</button>
@@ -49,21 +49,16 @@
   <div class="header">
     <h1>🎲 Dice of Kalma</h1>
     <p class="subtitle">Брось кубики, собери комбинацию, победи лимит</p>
-    <!-- МОНЕТЫ -->
-    <div class="coins-display">
-      🪙 <span id="coinsDisplay">0</span>
-    </div>
+    <div class="coins-display">🪙 <span id="coinsDisplay">0</span></div>
   </div>
 
-  <!-- Верхняя панель с кнопками -->
   <div class="top-bar">
     <button class="top-btn" onclick="togglePanel('leaderboard')">🏆</button>
-    <button class="top-btn" onclick="showQuests()">📋</button>
+    <button class="top-btn" onclick="togglePanel('quests')">📋</button>
     <button class="top-btn" onclick="togglePanel('chat')">💬</button>
     <button class="top-btn" onclick="showShop()">🛒</button>
   </div>
 
-  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -71,7 +66,6 @@
     <button onclick="register()">Регистрация</button>
   </div>
 
-  <!-- Игровой интерфейс -->
   <div id="gameSection" style="display:none;">
     <div class="user-info">
       <span>Привет, <span id="usernameDisplay"></span></span>
@@ -147,7 +141,6 @@
       <p>7. Собирайте улучшения, они дают мощные бонусы!</p>
       <p>8. Слева/справа – <strong>лидерборд, задания и чат</strong>.</p>
       <p>9. За выполнение заданий вы получаете <strong>монеты</strong>!</p>
-      <p>10. В магазине можно купить <strong>вечные улучшения</strong> за монеты.</p>
     </div>
     <button onclick="closeTutorial()" class="upgrade-select-btn">Начать игру!</button>
   </div>
