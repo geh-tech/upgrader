@@ -357,10 +357,8 @@ function playHand() {
   document.getElementById('resultMessage').textContent = `Ход: ${bone} × ${multiplier} = ${handTotal} (всего: ${roundTotal})`;
   document.getElementById('resultMessage').className = 'result info';
 
-  // Обновляем статистику комбинаций
   updateStatsAfterGame(handType, false);
-  // Проверяем задания (комбинации, победы и т.д.)
-  checkQuestProgress(handType, false);
+  checkQuestProgress(handType, false, 0); // при ходе не было повышения уровня
 
   if (handsLeft === 0) {
     const isWin = roundTotal >= limit;
@@ -370,26 +368,31 @@ function playHand() {
       playSound('win');
       flashOverlay('win');
       spawnWinParticles();
-      level++;
+
+      // === ВЫЧИСЛЯЕМ ПРИРОСТ УРОВНЯ ===
+      const levelGain = 1 + (passiveBonuses.extra_level || 0);
+      level += levelGain; // повышаем уровень
+
       if (level % 10 === 0) {
         baseHands++;
         showMessage(`🎉 Уровень ${level}! +1 рука навсегда! (теперь ${baseHands})`,'success');
       }
       limit = Math.floor(limit * 1.3);
       if (passiveBonuses.extra_level) {
-        const extra = passiveBonuses.extra_level;
-        level += extra;
-        showMessage(`✨ Дополнительный +${extra} уровень!`,'success');
+        showMessage(`✨ Дополнительный +${levelGain-1} уровень!`,'success');
       }
       document.getElementById('levelDisplay').textContent = level;
       document.getElementById('limitDisplay').textContent = limit;
+
       stats.total_wins++;
       stats.current_streak++;
       if (stats.current_streak > stats.best_streak) stats.best_streak = stats.current_streak;
       stats.total_games++;
       saveProgress();
-      // Ещё раз проверяем задания (победа, стрик)
-      checkQuestProgress(handType, true);
+
+      // Проверяем задания с учётом повышения уровня
+      checkQuestProgress(handType, true, levelGain);
+
       showUpgradeModal();
     } else {
       document.getElementById('resultMessage').className = 'result lose';
@@ -400,7 +403,7 @@ function playHand() {
       stats.current_streak = 0;
       stats.total_games++;
       saveProgress();
-      checkQuestProgress(handType, false);
+      checkQuestProgress(handType, false, 0);
       resetGame();
     }
     roundActive = false;
@@ -461,7 +464,7 @@ function updateStatsAfterGame(handType, win) {
 }
 
 // ===== АЧИВКИ (ЗАДАНИЯ) – обновлённая логика =====
-function checkQuestProgress(handType, win) {
+function checkQuestProgress(handType, win, levelGain = 0) {
   fetch('/quests')
     .then(res=>res.json())
     .then(quests=>{
@@ -482,8 +485,10 @@ function checkQuestProgress(handType, win) {
           case 'broken_straight': if(handType==='brokenStraight') increment = 1; break;
           case 'poker': if(handType==='poker'||handType==='twoPair') increment = 1; break;
           case 'royal': if(handType==='royal') increment = 1; break;
-          case 'total_games': if(win || !win) increment = 1; break; // считаем каждый раунд
-          case 'level_up': // сложнее – будем отслеживать отдельно, но пока пропустим
+          case 'total_games': increment = 1; break;
+          case 'level_up':
+            // Учитываем прирост уровня
+            if (levelGain > 0) increment = levelGain;
             break;
           default: break;
         }
