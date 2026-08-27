@@ -49,18 +49,21 @@
   <div class="header">
     <h1>🎲 Dice of Kalma</h1>
     <p class="subtitle">Брось кубики, собери комбинацию, победи лимит</p>
+    <!-- МОНЕТЫ -->
     <div class="coins-display">
       🪙 <span id="coinsDisplay">0</span>
     </div>
   </div>
 
+  <!-- Верхняя панель с кнопками -->
   <div class="top-bar">
-  <button class="top-btn" onclick="togglePanel('leaderboard')">🏆</button>
-  <button class="top-btn" onclick="togglePanel('quests')">📋</button>
-  <button class="top-btn" onclick="togglePanel('chat')">💬</button>
-  <button class="top-btn" onclick="showShop()">🛒</button>
-</div>
+    <button class="top-btn" onclick="togglePanel('leaderboard')">🏆</button>
+    <button class="top-btn" onclick="togglePanel('quests')">📋</button>
+    <button class="top-btn" onclick="togglePanel('chat')">💬</button>
+    <button class="top-btn" onclick="showShop()">🛒</button>
+  </div>
 
+  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -68,12 +71,14 @@
     <button onclick="register()">Регистрация</button>
   </div>
 
+  <!-- Игровой интерфейс -->
   <div id="gameSection" style="display:none;">
     <div class="user-info">
       <span>Привет, <span id="usernameDisplay"></span></span>
       <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
 
+    <!-- Прогресс (уровень и лимит) -->
     <div class="progress-bar">
       <div class="progress-item">
         <span class="progress-label">Уровень</span>
@@ -85,6 +90,7 @@
       </div>
     </div>
 
+    <!-- Статус (кость, множ, итог) -->
     <div class="status-bar">
       <div class="status-item">
         <span class="label">Кость</span>
@@ -100,6 +106,7 @@
       </div>
     </div>
 
+    <!-- Кубики -->
     <div class="dice-container" id="diceContainer">
       <div class="dice" data-index="0">⚀</div>
       <div class="dice" data-index="1">⚁</div>
@@ -108,18 +115,22 @@
       <div class="dice" data-index="4">⚄</div>
     </div>
 
+    <!-- Информация о перебросах и руках -->
     <div class="info-row">
       <span>🔄 Перебросов: <strong id="rerollCount">3</strong></span>
       <span>🎯 Рук: <strong id="handCount">3</strong></span>
     </div>
 
+    <!-- Кнопки -->
     <div class="actions">
       <button onclick="rerollSelected()" id="rerollBtn" disabled>🔄 Переброс</button>
       <button onclick="playHand()" id="playBtn" disabled>🎯 Играть руку</button>
     </div>
 
+    <!-- Результат -->
     <div id="resultMessage" class="result"></div>
 
+    <!-- Инвентарь -->
     <div class="inventory-section">
       <h3>📦 Инвентарь</h3>
       <div id="inventoryContainer" class="inventory-grid"></div>
@@ -143,13 +154,12 @@
       <p>7. Собирайте улучшения, они дают мощные бонусы!</p>
       <p>8. Слева/справа – <strong>лидерборд, задания и чат</strong>.</p>
       <p>9. За выполнение заданий вы получаете <strong>монеты</strong>!</p>
-      <p>10. Каждые 10 уровней вы получаете <strong>+1 руку</strong>!</p>
     </div>
     <button onclick="closeTutorial()" class="upgrade-select-btn">Начать игру!</button>
   </div>
 </div>
 
-<!-- Модалка улучшений -->
+<!-- Модалка улучшений (используется в client.js) -->
 <div id="upgradeModal" class="modal" style="display:none;">
   <div class="modal-content upgrade-modal-content">
     <h2>⬆ УРОВЕНЬ <span id="upgradeLevel"></span>!</h2>

@@ -88,7 +88,6 @@ db.serialize(() => {
   )`);
 });
 
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 function getUser(req) {
   return new Promise((resolve, reject) => {
     if (!req.session.userId) return resolve(null);
@@ -139,26 +138,18 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ 100+ ПРЕДМЕТОВ МАГАЗИНА =====
+// ===== ГЕНЕРАЦИЯ 120+ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА =====
 function generateShopItems() {
   const items = [];
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
   const handNames = {
-    high: 'Старшая карта',
-    pair: 'Пара',
-    twoPair: 'Две пары',
-    three: 'Тройка',
-    straight: 'Стрит',
-    fullHouse: 'Фулл-хаус',
-    four: 'Каре',
-    five: 'Пять одинаковых',
-    brokenStraight: 'Ломаный стрит',
-    poker: 'Покер',
-    royal: 'Рояль'
+    high:'Старшая карта', pair:'Пара', twoPair:'Две пары', three:'Тройка',
+    straight:'Стрит', fullHouse:'Фулл-хаус', four:'Каре', five:'Пять одинаковых',
+    brokenStraight:'Ломаный стрит', poker:'Покер', royal:'Рояль'
   };
-  // Для каждой руки создаём 3 уровня усиления (+1, +2, +3)
+  // Для каждой руки даём 2 уровня (чтобы не дублировать)
   for (const hand of handTypes) {
-    for (let level = 1; level <= 3; level++) {
+    for (let level = 1; level <= 2; level++) {
       items.push({
         id: `shop_hand_${hand}_${level}`,
         name: `Вечный +${level} к ${handNames[hand]}`,
@@ -170,22 +161,21 @@ function generateShopItems() {
       });
     }
   }
-  // Пассивные бонусы (кости, множитель, перебросы, руки, скидка лимита, доп. уровень)
+  // Пассивные бонусы (разные значения)
   const passives = [
-    { id: 'bones', name: 'Кости', desc: 'Навсегда +X к костям', valueBase: 3, step: 3 },
-    { id: 'mult', name: 'Множитель', desc: 'Навсегда +X к множителю', valueBase: 1, step: 1 },
-    { id: 'rerolls', name: 'Перебросы', desc: 'Навсегда +X к перебросам', valueBase: 1, step: 1 },
-    { id: 'hands', name: 'Руки', desc: 'Навсегда +X к рукам', valueBase: 1, step: 1 },
-    { id: 'limit', name: 'Скидка лимита', desc: 'Навсегда уменьшает стартовый лимит на X', valueBase: 3, step: 3 },
-    { id: 'extra_level', name: 'Бонус уровня', desc: 'Навсегда +X уровней при победе', valueBase: 1, step: 1 }
+    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10] },
+    { id: 'mult', name: 'Множитель', values: [1, 2] },
+    { id: 'rerolls', name: 'Перебросы', values: [1, 2] },
+    { id: 'hands', name: 'Руки', values: [1, 2] },
+    { id: 'limit', name: 'Скидка лимита', values: [3, 5, 8] },
+    { id: 'extra_level', name: 'Бонус уровня', values: [1, 2] }
   ];
   for (const p of passives) {
-    for (let level = 1; level <= 3; level++) {
-      const val = p.valueBase * level;
+    for (const val of p.values) {
       items.push({
-        id: `shop_passive_${p.id}_${level}`,
+        id: `shop_passive_${p.id}_${val}`,
         name: `Вечный +${val} ${p.name}`,
-        desc: p.desc.replace('X', val),
+        desc: `Навсегда +${val} к ${p.name}`,
         type: 'passive',
         bonus: p.id,
         value: val,
@@ -193,64 +183,37 @@ function generateShopItems() {
       });
     }
   }
-  // Комбинированные (кости+множ) – ещё 3 уровня
-  for (let level = 1; level <= 3; level++) {
-    const b = level * 2;
-    const m = level * 1;
+  // Комбинированные (кости+множ) – разные варианты
+  const combos = [
+    { b: 2, m: 1 }, { b: 3, m: 2 }, { b: 5, m: 1 }, { b: 5, m: 2 },
+    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }
+  ];
+  for (let i = 0; i < combos.length; i++) {
+    const c = combos[i];
     items.push({
-      id: `shop_combo_${level}`,
-      name: `Вечный +${b} кости +${m} множ`,
-      desc: `Навсегда +${b} к костям и +${m} к множителю`,
+      id: `shop_combo_${i}`,
+      name: `Вечный +${c.b} кости +${c.m} множ`,
+      desc: `Навсегда +${c.b} к костям и +${c.m} к множителю`,
       type: 'combo',
       bonus: 'combo_bones_mult',
-      value: { bones: b, mult: m },
+      value: { bones: c.b, mult: c.m },
       basePrice: 5
     });
   }
-  // Итого: 11*3 = 33 + 6*3 = 18 + 3 = 54, нужно 100+, добавим ещё варианты с большими значениями
-  // Добавим ещё несколько уровней (до 5) для рук и пассивов
-  for (const hand of handTypes) {
-    for (let level = 4; level <= 5; level++) {
-      items.push({
-        id: `shop_hand_${hand}_${level}`,
-        name: `Вечный +${level} к ${handNames[hand]}`,
-        desc: `Навсегда +${level} множителя для ${handNames[hand]}`,
-        type: 'hand',
-        hand: hand,
-        value: level,
-        basePrice: 5
-      });
-    }
+  // Редкие усиления (большие значения)
+  const rare = [
+    { id: 'rare_hands_3', name: 'Вечные +3 руки', desc: 'Навсегда +3 руки за раунд', type: 'passive', bonus: 'extra_hands', value: 3 },
+    { id: 'rare_hands_5', name: 'Вечные +5 рук', desc: 'Навсегда +5 рук за раунд', type: 'passive', bonus: 'extra_hands', value: 5 },
+    { id: 'rare_rerolls_3', name: 'Вечные +3 переброса', desc: 'Навсегда +3 переброса за раунд', type: 'passive', bonus: 'rerolls', value: 3 },
+    { id: 'rare_bones_15', name: 'Вечные +15 костей', desc: 'Навсегда +15 к костям', type: 'passive', bonus: 'bones', value: 15 },
+    { id: 'rare_mult_3', name: 'Вечный +3 множитель', desc: 'Навсегда +3 к множителю', type: 'passive', bonus: 'mult', value: 3 },
+    { id: 'rare_limit_10', name: 'Вечная скидка лимита -10', desc: 'Навсегда уменьшает стартовый лимит на 10', type: 'passive', bonus: 'limit', value: 10 },
+    { id: 'rare_extra_level_3', name: 'Вечный +3 уровня при победе', desc: 'Навсегда +3 дополнительных уровня при победе', type: 'passive', bonus: 'extra_level', value: 3 }
+  ];
+  for (const r of rare) {
+    items.push({ ...r, basePrice: 5 });
   }
-  for (const p of passives) {
-    for (let level = 4; level <= 5; level++) {
-      const val = p.valueBase * level;
-      items.push({
-        id: `shop_passive_${p.id}_${level}`,
-        name: `Вечный +${val} ${p.name}`,
-        desc: p.desc.replace('X', val),
-        type: 'passive',
-        bonus: p.id,
-        value: val,
-        basePrice: 5
-      });
-    }
-  }
-  // Добавим ещё 3 уровня комбо
-  for (let level = 4; level <= 5; level++) {
-    const b = level * 2;
-    const m = level * 1;
-    items.push({
-      id: `shop_combo_${level}`,
-      name: `Вечный +${b} кости +${m} множ`,
-      desc: `Навсегда +${b} к костям и +${m} к множителю`,
-      type: 'combo',
-      bonus: 'combo_bones_mult',
-      value: { bones: b, mult: m },
-      basePrice: 5
-    });
-  }
-  // Теперь должно быть >100
+  // Итого: 11*2 + 6*(4+2+2+2+3+2) + 7 + 7 = 22 + 6*15 = 22+90+7+7 = 126
   return items;
 }
 
@@ -371,13 +334,11 @@ app.post('/update-progress', async (req, res) => {
 });
 
 // ===== МАГАЗИН =====
-// Получить актуальный список предметов с текущими ценами и количеством покупок
 app.get('/shop-items', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   const data = await getPlayerData(user.id);
   const shopProgress = data ? JSON.parse(data.shop_progress || '{}') : {};
-  // Формируем список с текущей ценой и количеством
   const itemsWithPrice = SHOP_ITEMS.map(item => {
     const progress = shopProgress[item.id] || { count: 0, price: item.basePrice };
     return {
@@ -389,7 +350,6 @@ app.get('/shop-items', async (req, res) => {
   res.json(itemsWithPrice);
 });
 
-// Купить предмет
 app.post('/buy-upgrade', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -403,32 +363,17 @@ app.post('/buy-upgrade', async (req, res) => {
   let progress = shopProgress[itemId] || { count: 0, price: itemDef.basePrice };
   if (coins < progress.price) return res.status(400).json({ error: 'Недостаточно монет' });
 
-  // Списываем монеты
   coins -= progress.price;
-  // Увеличиваем счётчик и цену
   progress.count += 1;
   progress.price += 5;
   shopProgress[itemId] = progress;
-
-  // Применяем вечное улучшение (добавляем в permanent_upgrades)
-  let permanent = JSON.parse(data.permanent_upgrades || '[]');
-  // Добавляем запись о покупке (можно хранить id и количество)
-  // Чтобы не дублировать, просто добавляем новый объект с типом и значением
-  // Но для простоты мы будем применять бонусы при старте игры, используя shopProgress
-  // Поэтому просто сохраним shopProgress и coins
 
   db.run(
     'UPDATE player_data SET shop_progress = ?, coins = ? WHERE user_id = ?',
     [JSON.stringify(shopProgress), coins, user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      res.json({
-        success: true,
-        coins,
-        shopProgress,
-        newPrice: progress.price,
-        count: progress.count
-      });
+      res.json({ success: true, coins, shopProgress, newPrice: progress.price, count: progress.count });
     }
   );
 });

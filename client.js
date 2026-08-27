@@ -223,10 +223,10 @@ function getHandName(type) {
   return names[type]||type;
 }
 
-// ===== СБРОС ИГРЫ (с учётом вечных улучшений) =====
+// ===== СБРОС ИГРЫ (с учётом вечных улучшений из магазина) =====
 function resetGame() {
   level=1;
-  // Применяем вечные улучшения из shopProgress
+  // Применяем все вечные бонусы из shopProgress
   const handsBonus = Object.values(shopProgress)
     .filter(p => p.id && p.id.startsWith('shop_hand_'))
     .reduce((sum, p) => sum + p.value, 0);
@@ -251,6 +251,8 @@ function resetGame() {
   const comboMult = Object.values(shopProgress)
     .filter(p => p.id && p.id.startsWith('shop_combo_'))
     .reduce((sum, p) => sum + (p.value.mult || 0), 0);
+  // Редкие предметы тоже могут быть в shopProgress, но они имеют такие же префиксы (shop_passive_...)
+  // Поэтому они уже учтены в фильтрах выше.
 
   baseHands = 3 + handsBonus;
   passiveBonuses.rerolls = rerollsBonus;
@@ -521,7 +523,6 @@ async function showShop() {
     const res = await fetch('/shop-items');
     const items = await res.json();
     if (!items.length) return;
-    // Строим модалку
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.id = 'shopModal';
@@ -545,7 +546,6 @@ async function showShop() {
       </div>
     `;
     document.body.appendChild(modal);
-    // Обработчики
     modal.querySelectorAll('.buy-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const itemId = btn.dataset.id;
@@ -575,9 +575,7 @@ async function buyPermanentUpgrade(itemId) {
       coins = data.coins;
       document.getElementById('coinsDisplay').textContent = coins;
       shopProgress = data.shopProgress;
-      // Перезапускаем игру с новыми бонусами
       resetGame();
-      // Обновляем магазин (переоткрываем)
       closeShop();
       showShop();
     } else {
@@ -731,22 +729,27 @@ function loadQuests(){
     });
 }
 
-// ===== ПАНЕЛИ =====
-function togglePanel(type){
-  const panels={
-    leaderboard:document.getElementById('leaderboardPanel'),
-    chat:document.getElementById('chatPanel'),
-    quests:document.getElementById('questsPanel')
+// ===== ПАНЕЛИ (исправлено: добавил console.log для отладки) =====
+function togglePanel(type) {
+  console.log(`🔘 togglePanel вызван для: ${type}`);
+  const panels = {
+    leaderboard: document.getElementById('leaderboardPanel'),
+    chat: document.getElementById('chatPanel'),
+    quests: document.getElementById('questsPanel')
   };
-  const panel=panels[type];
-  if(!panel) return;
-  if(panel.classList.contains('open')) panel.classList.remove('open');
-  else {
-    Object.values(panels).forEach(p=>p.classList.remove('open'));
+  const panel = panels[type];
+  if (!panel) {
+    console.error(`❌ Панель ${type} не найдена`);
+    return;
+  }
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+  } else {
+    Object.values(panels).forEach(p => p && p.classList.remove('open'));
     panel.classList.add('open');
-    if(type==='leaderboard') loadLeaderboard();
-    if(type==='chat') loadChat();
-    if(type==='quests') loadQuests();
+    if (type === 'leaderboard') loadLeaderboard();
+    if (type === 'chat') loadChat();
+    if (type === 'quests') loadQuests();
   }
 }
 
@@ -819,13 +822,11 @@ async function loadGameData(){
       permanentUpgrades=data.permanent_upgrades||[];
       shopProgress=data.shop_progress||{};
       stats=data.stats||stats;
-      // Применяем вечные бонусы из shopProgress
+      // Применяем вечные бонусы
       const handsBonus = Object.values(shopProgress)
         .filter(p => p.id && p.id.startsWith('shop_hand_'))
         .reduce((sum, p) => sum + p.value, 0);
       baseHands = 3 + handsBonus;
-      // Пассивные бонусы также применяются при старте игры (уже в resetGame)
-      // Но они уже сохранены в passiveBonuses при загрузке
       document.getElementById('levelDisplay').textContent=level;
       document.getElementById('limitDisplay').textContent=limit;
       document.getElementById('coinsDisplay').textContent=coins;
