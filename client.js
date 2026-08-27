@@ -46,7 +46,7 @@ let passiveBonuses = {
   extra_level: 0
 };
 
-// ===== ГЕНЕРАЦИЯ УЛУЧШЕНИЙ (200+) =====
+// ===== ГЕНЕРАЦИЯ УЛУЧШЕНИЙ =====
 function generateAllUpgrades() {
   const upgrades = [];
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five'];
@@ -173,6 +173,24 @@ diceElements.forEach((el, i) => {
   });
 });
 
+// ===== СБРОС ИГРЫ (ПРИ ПОРАЖЕНИИ) =====
+function resetGame() {
+  level = 1;
+  limit = 50;
+  inventory = [];
+  handUpgrades = { high: 0, pair: 0, twoPair: 0, three: 0, straight: 0, fullHouse: 0, four: 0, five: 0 };
+  passiveBonuses = { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+  document.getElementById('levelDisplay').textContent = level;
+  document.getElementById('limitDisplay').textContent = limit;
+  renderInventory();
+  saveProgress();
+  // Запускаем новый раунд с начальными данными
+  roundActive = false;
+  setTimeout(() => {
+    startRound();
+  }, 500);
+}
+
 // ===== ИГРОВЫЕ ФУНКЦИИ =====
 
 function startRound() {
@@ -274,7 +292,7 @@ function playHand() {
     // ПОБЕДА
     const oldLimit = limit;
     level++;
-    limit = Math.floor(limit * 1.3); // +30% рост
+    limit = Math.floor(limit * 1.3);
     resultEl.className = 'result win';
     resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${oldLimit} → ${limit})`;
 
@@ -290,28 +308,12 @@ function playHand() {
     saveProgress();
     showUpgradeModal();
   } else {
-    // ПОРАЖЕНИЕ
+    // ПОРАЖЕНИЕ – сброс игры
     resultEl.className = 'result lose';
     resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
-
-    if (inventory.length > 0) {
-      const lostItem = inventory.pop();
-      if (lostItem.type === 'hand') {
-        handUpgrades[lostItem.hand] = (handUpgrades[lostItem.hand] || 0) - lostItem.value;
-      } else if (lostItem.type === 'passive') {
-        const bonus = lostItem.bonus;
-        if (bonus === 'combo_bones_mult') {
-          passiveBonuses.combo_bones_mult = null;
-        } else if (bonus === 'extra_level' || bonus === 'limit_reduce' || bonus === 'extra_hands' || bonus === 'extra_rerolls') {
-          passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) - lostItem.value;
-        } else {
-          passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) - lostItem.value;
-        }
-      }
-      renderInventory();
-      showMessage(`💀 Улучшение "${lostItem.name}" сгорело!`, 'error');
-      saveProgress();
-    }
+    // Полный сброс
+    resetGame();
+    // Обновляем отображение (уже внутри resetGame)
   }
 
   handsLeft--;
@@ -321,28 +323,9 @@ function playHand() {
     roundActive = false;
     document.getElementById('playBtn').disabled = true;
     document.getElementById('rerollBtn').disabled = true;
-    setTimeout(() => {
-      startRound();
-    }, 2500);
   } else if (!isWin) {
-    setTimeout(() => {
-      hasRolled = false;
-      selectedDice = [false, false, false, false, false];
-      diceElements.forEach(el => el.classList.remove('selected'));
-      for (let i = 0; i < 5; i++) {
-        dice[i] = Math.floor(Math.random() * 6) + 1;
-      }
-      hasRolled = true;
-      updateDiceDisplay();
-      updateStats();
-      const bonusRerolls = passiveBonuses.rerolls || 0;
-      rerollsLeft = 3 + bonusRerolls;
-      updateRerollDisplay();
-      document.getElementById('rerollBtn').disabled = true;
-      document.getElementById('playBtn').disabled = false;
-      document.getElementById('resultMessage').textContent = '';
-      document.getElementById('resultMessage').className = 'result';
-    }, 1500);
+    // Если проиграли, но руки ещё есть – сброс уже произошёл, но код продолжит
+    // На самом деле resetGame перезапускает раунд, так что этот блок не нужен.
   }
 }
 
@@ -521,6 +504,7 @@ function renderInventory() {
       }
     }
     let activeClass = '';
+    // Активен только если это рука и она совпадает с текущей
     if (isHand && item.hand === currentHandType) {
       activeClass = ' active';
     }
