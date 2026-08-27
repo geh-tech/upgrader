@@ -295,3 +295,121 @@ h1 {
   .status-bar { grid-template-columns: repeat(3, 1fr); }
   .actions button { padding: 10px 20px; font-size: 1rem; }
 }
+/* ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА УЛУЧШЕНИЙ ===== */
+.upgrade-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.upgrade-modal-content {
+    background: #1a1a1a;
+    border: 2px solid #ffd700;
+    border-radius: 24px;
+    padding: 30px 25px;
+    max-width: 600px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(255, 215, 0, 0.2);
+}
+
+.upgrade-modal-content h2 {
+    text-align: center;
+    color: #ffd700;
+    font-size: 2rem;
+    margin-bottom: 5px;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.upgrade-subtitle {
+    text-align: center;
+    color: #aaa;
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+.upgrade-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.upgrade-option {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+    cursor: default;
+}
+
+.upgrade-option:hover {
+    border-color: #ffd700;
+    background: #2a2a2a;
+    transform: translateX(4px);
+}
+
+.upgrade-option .upgrade-name {
+    font-weight: bold;
+    color: #ffd700;
+    font-size: 1.1rem;
+    min-width: 140px;
+}
+
+.upgrade-option .upgrade-desc {
+    color: #ccc;
+    font-size: 0.9rem;
+    flex: 1;
+    margin: 0 15px;
+}
+
+.upgrade-select-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 30px;
+    background: #ffd700;
+    color: #111;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.upgrade-select-btn:hover {
+    background: #ffed4a;
+    transform: scale(1.05);
+}
+
+@media (max-width: 500px) {
+    .upgrade-option {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        text-align: center;
+    }
+    .upgrade-option .upgrade-name {
+        min-width: 100%;
+    }
+    .upgrade-option .upgrade-desc {
+        margin: 0 0 10px 0;
+        width: 100%;
+    }
+}
