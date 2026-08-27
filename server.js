@@ -18,18 +18,15 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
-// ===== БАЗА ДАННЫХ =====
 const db = new sqlite3.Database('./database.db');
 
 db.serialize(() => {
-  // Пользователи
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT
   )`);
 
-  // Данные игрока (прогресс)
   db.run(`CREATE TABLE IF NOT EXISTS player_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER UNIQUE,
@@ -38,12 +35,12 @@ db.serialize(() => {
     inventory TEXT DEFAULT '[]',
     hand_upgrades TEXT DEFAULT '{}',
     passive_bonuses TEXT DEFAULT '{}',
+    coins INTEGER DEFAULT 0,
     last_visit DATE,
     tutorial_shown INTEGER DEFAULT 0,
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 
-  // Статистика для заданий (счётчики)
   db.run(`CREATE TABLE IF NOT EXISTS player_stats (
     user_id INTEGER PRIMARY KEY,
     total_wins INTEGER DEFAULT 0,
@@ -63,7 +60,6 @@ db.serialize(() => {
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 
-  // История сообщений чата
   db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT,
@@ -71,7 +67,6 @@ db.serialize(() => {
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Ежедневные задания (запись о выполнении)
   db.run(`CREATE TABLE IF NOT EXISTS daily_quests (
     user_id INTEGER,
     quest_id INTEGER,
@@ -79,6 +74,15 @@ db.serialize(() => {
     completed INTEGER DEFAULT 0,
     date DATE,
     PRIMARY KEY (user_id, quest_id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS achievements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    achievement_id TEXT,
+    completed INTEGER DEFAULT 0,
+    date DATE,
+    FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 });
 
@@ -105,7 +109,7 @@ function getPlayerData(userId) {
 function createPlayerData(userId) {
   return new Promise((resolve, reject) => {
     db.run(
-      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, last_visit) VALUES (?, 1, 50, ?, ?, ?, ?)',
+      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses, coins, last_visit) VALUES (?, 1, 50, ?, ?, ?, 0, ?)',
       [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({}), new Date().toISOString().slice(0,10)],
       function(err) {
         if (err) reject(err);
@@ -133,53 +137,69 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ ЕЖЕДНЕВНЫХ ЗАДАНИЙ (100+) =====
-function generateDailyQuests() {
-  const quests = [];
+// ===== ГЕНЕРАЦИЯ 100+ АЧИВОК (ЗАДАНИЙ) =====
+function generateAchievements() {
+  const achievements = [];
   const types = [
-    { id: 'win_3', desc: 'Выиграть 3 раунда', target: 3, reward: 'rare_upgrade' },
-    { id: 'win_5', desc: 'Выиграть 5 раундов', target: 5, reward: 'coins_50' },
-    { id: 'win_10', desc: 'Выиграть 10 раундов', target: 10, reward: 'epic_upgrade' },
-    { id: 'streak_3', desc: 'Победить 3 раза подряд', target: 3, reward: 'coins_30' },
-    { id: 'streak_5', desc: 'Победить 5 раз подряд', target: 5, reward: 'rare_upgrade' },
-    { id: 'pair_5', desc: 'Выбросить пару 5 раз', target: 5, reward: 'coins_20' },
-    { id: 'two_pair_3', desc: 'Выбросить две пары 3 раза', target: 3, reward: 'coins_40' },
-    { id: 'three_3', desc: 'Выбросить тройку 3 раза', target: 3, reward: 'rare_upgrade' },
-    { id: 'straight_2', desc: 'Выбросить стрит 2 раза', target: 2, reward: 'epic_upgrade' },
-    { id: 'full_house_2', desc: 'Выбросить фулл-хаус 2 раза', target: 2, reward: 'coins_60' },
-    { id: 'four_1', desc: 'Выбросить каре 1 раз', target: 1, reward: 'legendary_upgrade' },
-    { id: 'five_1', desc: 'Выбросить пять одинаковых 1 раз', target: 1, reward: 'legendary_upgrade' },
-    { id: 'broken_straight_2', desc: 'Выбросить ломаный стрит 2 раза', target: 2, reward: 'rare_upgrade' },
-    { id: 'poker_2', desc: 'Выбросить покер 2 раза', target: 2, reward: 'epic_upgrade' },
-    { id: 'royal_1', desc: 'Выбросить рояль 1 раз', target: 1, reward: 'legendary_upgrade' },
-    { id: 'total_games_10', desc: 'Сыграть 10 раундов', target: 10, reward: 'coins_30' },
-    { id: 'total_games_20', desc: 'Сыграть 20 раундов', target: 20, reward: 'coins_60' },
-    { id: 'level_up_2', desc: 'Повысить уровень на 2', target: 2, reward: 'rare_upgrade' },
-    { id: 'level_up_5', desc: 'Повысить уровень на 5', target: 5, reward: 'epic_upgrade' },
-    // Добавим ещё 80+ комбинаций (циклически)
+    { id: 'win_3', desc: 'Выиграть 3 раунда', target: 3, reward: 10 },
+    { id: 'win_5', desc: 'Выиграть 5 раундов', target: 5, reward: 20 },
+    { id: 'win_10', desc: 'Выиграть 10 раундов', target: 10, reward: 30 },
+    { id: 'win_20', desc: 'Выиграть 20 раундов', target: 20, reward: 50 },
+    { id: 'win_50', desc: 'Выиграть 50 раундов', target: 50, reward: 100 },
+    { id: 'win_100', desc: 'Выиграть 100 раундов', target: 100, reward: 200 },
+    { id: 'streak_3', desc: 'Победить 3 раза подряд', target: 3, reward: 15 },
+    { id: 'streak_5', desc: 'Победить 5 раз подряд', target: 5, reward: 25 },
+    { id: 'streak_10', desc: 'Победить 10 раз подряд', target: 10, reward: 50 },
+    { id: 'pair_5', desc: 'Выбросить пару 5 раз', target: 5, reward: 10 },
+    { id: 'pair_10', desc: 'Выбросить пару 10 раз', target: 10, reward: 20 },
+    { id: 'two_pair_3', desc: 'Выбросить две пары 3 раза', target: 3, reward: 15 },
+    { id: 'two_pair_5', desc: 'Выбросить две пары 5 раз', target: 5, reward: 25 },
+    { id: 'three_3', desc: 'Выбросить тройку 3 раза', target: 3, reward: 20 },
+    { id: 'three_5', desc: 'Выбросить тройку 5 раз', target: 5, reward: 30 },
+    { id: 'straight_2', desc: 'Выбросить стрит 2 раза', target: 2, reward: 20 },
+    { id: 'straight_5', desc: 'Выбросить стрит 5 раз', target: 5, reward: 40 },
+    { id: 'full_house_2', desc: 'Выбросить фулл-хаус 2 раза', target: 2, reward: 25 },
+    { id: 'full_house_5', desc: 'Выбросить фулл-хаус 5 раз', target: 5, reward: 50 },
+    { id: 'four_1', desc: 'Выбросить каре 1 раз', target: 1, reward: 30 },
+    { id: 'four_3', desc: 'Выбросить каре 3 раза', target: 3, reward: 60 },
+    { id: 'five_1', desc: 'Выбросить пять одинаковых 1 раз', target: 1, reward: 50 },
+    { id: 'five_3', desc: 'Выбросить пять одинаковых 3 раза', target: 3, reward: 100 },
+    { id: 'broken_straight_2', desc: 'Выбросить ломаный стрит 2 раза', target: 2, reward: 20 },
+    { id: 'broken_straight_5', desc: 'Выбросить ломаный стрит 5 раз', target: 5, reward: 40 },
+    { id: 'poker_2', desc: 'Выбросить покер 2 раза', target: 2, reward: 25 },
+    { id: 'poker_5', desc: 'Выбросить покер 5 раз', target: 5, reward: 50 },
+    { id: 'royal_1', desc: 'Выбросить рояль 1 раз', target: 1, reward: 40 },
+    { id: 'royal_3', desc: 'Выбросить рояль 3 раза', target: 3, reward: 80 },
+    { id: 'total_games_10', desc: 'Сыграть 10 раундов', target: 10, reward: 10 },
+    { id: 'total_games_25', desc: 'Сыграть 25 раундов', target: 25, reward: 20 },
+    { id: 'total_games_50', desc: 'Сыграть 50 раундов', target: 50, reward: 30 },
+    { id: 'total_games_100', desc: 'Сыграть 100 раундов', target: 100, reward: 50 },
+    { id: 'level_up_2', desc: 'Повысить уровень на 2', target: 2, reward: 20 },
+    { id: 'level_up_5', desc: 'Повысить уровень на 5', target: 5, reward: 40 },
+    { id: 'level_up_10', desc: 'Повысить уровень на 10', target: 10, reward: 60 },
   ];
-  // Генерируем 100 заданий
+  // Генерируем 100+ ачивок, дублируя с разными target
   for (let i = 0; i < 100; i++) {
     const base = types[i % types.length];
-    const variant = Math.floor(i / types.length);
-    const newTarget = base.target + variant * 2;
-    const newReward = base.reward + (variant > 0 ? '_plus' : '');
-    quests.push({
-      id: `${base.id}_${variant}`,
+    const multiplier = Math.floor(i / types.length) + 1;
+    const newTarget = base.target * multiplier;
+    const newReward = Math.floor(base.reward * multiplier * 0.8);
+    achievements.push({
+      id: `${base.id}_${i}`,
       desc: `${base.desc} (${newTarget} раз)`,
       target: newTarget,
       reward: newReward,
-      type: base.id.split('_')[0] // для отслеживания прогресса
+      type: base.id.split('_')[0]
     });
   }
-  return quests;
+  return achievements;
 }
 
-const DAILY_QUESTS = generateDailyQuests();
+const ALL_ACHIEVEMENTS = generateAchievements();
 
 // ===== API =====
 
-// Получить данные пользователя
+// Получить данные пользователя (включая монеты)
 app.get('/user', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -192,26 +212,26 @@ app.get('/user', async (req, res) => {
     inventory: data ? JSON.parse(data.inventory) : [],
     hand_upgrades: data ? JSON.parse(data.hand_upgrades) : {},
     passive_bonuses: data ? JSON.parse(data.passive_bonuses) : {},
+    coins: data ? data.coins : 0,
     tutorial_shown: data ? data.tutorial_shown : 0,
     stats: stats
   });
 });
 
-// Обновить прогресс (включая статистику)
+// Обновить прогресс (включая монеты)
 app.post('/update-progress', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
-  const { level, limit_score, inventory, hand_upgrades, passive_bonuses, stats } = req.body;
+  const { level, limit_score, inventory, hand_upgrades, passive_bonuses, stats, coins } = req.body;
   db.run(
     `UPDATE player_data 
-     SET level = ?, limit_score = ?, inventory = ?, hand_upgrades = ?, passive_bonuses = ? 
+     SET level = ?, limit_score = ?, inventory = ?, hand_upgrades = ?, passive_bonuses = ?, coins = ?
      WHERE user_id = ?`,
-    [level, limit_score, JSON.stringify(inventory), JSON.stringify(hand_upgrades || {}), JSON.stringify(passive_bonuses || {}), user.id],
+    [level, limit_score, JSON.stringify(inventory), JSON.stringify(hand_upgrades || {}), JSON.stringify(passive_bonuses || {}), coins || 0, user.id],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
     }
   );
-  // Обновляем статистику
   if (stats) {
     db.run(
       `INSERT OR REPLACE INTO player_stats 
@@ -264,48 +284,45 @@ app.get('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ===== ЗАДАНИЯ =====
-// Получить задания для текущего пользователя
+// ===== АЧИВКИ (ЗАДАНИЯ) =====
 app.get('/quests', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
   const today = new Date().toISOString().slice(0,10);
-  // Проверяем, обновлялись ли задания сегодня
   const data = await getPlayerData(user.id);
   if (data.last_visit !== today) {
-    // Сброс заданий (очищаем таблицу daily_quests для этого пользователя)
+    // Сброс старых заданий
     db.run('DELETE FROM daily_quests WHERE user_id = ?', [user.id]);
-    // Создаём новые задания (выбираем случайные 5 из 100)
-    const shuffled = [...DAILY_QUESTS].sort(() => Math.random() - 0.5);
+    // Выбираем 5 случайных ачивок из всех возможных
+    const shuffled = [...ALL_ACHIEVEMENTS].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, 5);
-    for (const q of selected) {
+    for (const ach of selected) {
       db.run('INSERT INTO daily_quests (user_id, quest_id, progress, completed, date) VALUES (?, ?, 0, 0, ?)',
-        [user.id, q.id, today]);
+        [user.id, ach.id, today]);
     }
-    // Обновляем last_visit
     db.run('UPDATE player_data SET last_visit = ? WHERE user_id = ?', [today, user.id]);
   }
-  // Получаем задания с прогрессом
+  // Получаем текущие задания с прогрессом
   const questsWithProgress = await new Promise((resolve, reject) => {
     db.all('SELECT * FROM daily_quests WHERE user_id = ?', [user.id], (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
   });
-  // Присоединяем описание и награду
+  // Добавляем описание и награду
   const fullQuests = questsWithProgress.map(row => {
-    const qDef = DAILY_QUESTS.find(q => q.id === row.quest_id);
+    const def = ALL_ACHIEVEMENTS.find(a => a.id === row.quest_id);
     return {
       ...row,
-      desc: qDef ? qDef.desc : 'Задание',
-      reward: qDef ? qDef.reward : 'coins_10',
-      target: qDef ? qDef.target : 1
+      desc: def ? def.desc : 'Задание',
+      reward: def ? def.reward : 10,
+      target: def ? def.target : 1
     };
   });
   res.json(fullQuests);
 });
 
-// Обновить прогресс задания (вызывается при выполнении условия)
+// Обновить прогресс ачивки и начислить монеты при завершении
 app.post('/quest-progress', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
@@ -315,16 +332,25 @@ app.post('/quest-progress', async (req, res) => {
     [increment || 1, user.id, questId],
     function(err) {
       if (err) return res.status(500).json({ error: 'Ошибка БД' });
-      // Проверяем, не выполнено ли задание
-      db.get('SELECT progress, target FROM daily_quests q JOIN daily_quests_def d ON q.quest_id = d.id WHERE q.user_id = ? AND q.quest_id = ?',
-        [user.id, questId], (err2, row) => {
+      // Проверяем, выполнено ли задание
+      db.get(
+        'SELECT progress, target FROM daily_quests WHERE user_id = ? AND quest_id = ?',
+        [user.id, questId],
+        (err2, row) => {
           if (row && row.progress >= row.target) {
+            // Помечаем как выполненное
             db.run('UPDATE daily_quests SET completed = 1 WHERE user_id = ? AND quest_id = ?', [user.id, questId]);
-            // Выдаём награду (упрощённо: добавляем в инвентарь)
-            // Для демонстрации просто увеличим бонусы (можно расширить)
+            // Награда
+            const def = ALL_ACHIEVEMENTS.find(a => a.id === questId);
+            if (def) {
+              db.run('UPDATE player_data SET coins = coins + ? WHERE user_id = ?', [def.reward, user.id]);
+            }
+            res.json({ success: true, completed: true });
+          } else {
+            res.json({ success: true, completed: false });
           }
-          res.json({ success: true });
-        });
+        }
+      );
     }
   );
 });
@@ -332,7 +358,7 @@ app.post('/quest-progress', async (req, res) => {
 // ===== ЛИДЕРБОРД =====
 app.get('/leaderboard', (req, res) => {
   db.all(
-    `SELECT u.username, p.level, p.limit_score 
+    `SELECT u.username, p.level, p.limit_score, p.coins
      FROM player_data p 
      JOIN users u ON p.user_id = u.id 
      ORDER BY p.level DESC, p.limit_score DESC 
@@ -345,7 +371,6 @@ app.get('/leaderboard', (req, res) => {
 });
 
 // ===== ЧАТ =====
-// Получить последние сообщения
 app.get('/chat', (req, res) => {
   db.all(
     'SELECT username, message, timestamp FROM chat_messages ORDER BY timestamp DESC LIMIT 50',
@@ -356,7 +381,6 @@ app.get('/chat', (req, res) => {
   );
 });
 
-// Отправить сообщение
 app.post('/chat', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
