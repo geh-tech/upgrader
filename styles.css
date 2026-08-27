@@ -126,15 +126,48 @@ h1 {
   color: #ff6b6b;
 }
 
-/* ===== СТАТУС БАР ===== */
+/* ===== НОВЫЙ БЛОК: УРОВЕНЬ И ЛИМИТ ===== */
+.progress-bar {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  padding: 12px 15px;
+  margin: 10px 0 15px;
+  border: 1px solid rgba(255, 215, 0, 0.1);
+}
+.progress-item {
+  text-align: center;
+  flex: 1;
+}
+.progress-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  margin-bottom: 2px;
+}
+.progress-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 900;
+  font-family: 'Orbitron', monospace;
+  color: #ffd700;
+  text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+  line-height: 1.2;
+}
+
+/* ===== СТАТУС БАР (КОСТЬ, МНОЖ, ИТОГ) ===== */
 .status-bar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.4);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 20px;
-  padding: 12px 10px;
-  margin: 15px 0;
+  padding: 10px 8px;
+  margin: 0 0 15px 0;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .status-item {
@@ -150,7 +183,7 @@ h1 {
 }
 .status-item .value {
   display: block;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 700;
   font-family: 'Orbitron', monospace;
   color: #ffd700;
@@ -163,7 +196,7 @@ h1 {
   display: flex;
   justify-content: center;
   gap: 14px;
-  margin: 20px 0 15px;
+  margin: 15px 0 10px;
   flex-wrap: wrap;
 }
 .dice {
@@ -467,8 +500,8 @@ h1 {
 @media (max-width: 550px) {
   .container { padding: 20px; }
   .dice { width: 58px; height: 58px; font-size: 2.4rem; }
-  .status-bar { grid-template-columns: repeat(3, 1fr); gap: 4px; }
-  .status-item .value { font-size: 1.1rem; }
+  .progress-value { font-size: 1.8rem; }
+  .status-item .value { font-size: 1.4rem; }
   .upgrade-option { flex-wrap: wrap; gap: 10px; justify-content: center; text-align: center; }
   .upgrade-option .upgrade-name { min-width: 100%; }
   .upgrade-option .upgrade-desc { margin: 0 0 10px; width: 100%; }

@@ -31,7 +31,7 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER UNIQUE,
     level INTEGER DEFAULT 1,
-    limit_score INTEGER DEFAULT 25,
+    limit_score INTEGER DEFAULT 50,
     inventory TEXT DEFAULT '[]',
     hand_upgrades TEXT DEFAULT '{}',
     passive_bonuses TEXT DEFAULT '{}',
@@ -61,7 +61,7 @@ function getPlayerData(userId) {
 function createPlayerData(userId) {
   return new Promise((resolve, reject) => {
     db.run(
-      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses) VALUES (?, 1, 25, ?, ?, ?)',
+      'INSERT INTO player_data (user_id, level, limit_score, inventory, hand_upgrades, passive_bonuses) VALUES (?, 1, 50, ?, ?, ?)',
       [userId, JSON.stringify([]), JSON.stringify({}), JSON.stringify({})],
       function(err) {
         if (err) reject(err);
@@ -78,7 +78,7 @@ app.get('/user', async (req, res) => {
   res.json({
     username: user.username,
     level: data ? data.level : 1,
-    limit_score: data ? data.limit_score : 25,
+    limit_score: data ? data.limit_score : 50,
     inventory: data ? JSON.parse(data.inventory) : [],
     hand_upgrades: data ? JSON.parse(data.hand_upgrades) : {},
     passive_bonuses: data ? JSON.parse(data.passive_bonuses) : {}
