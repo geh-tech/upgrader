@@ -494,6 +494,15 @@ app.post('/quest-progress', async (req, res) => {
   );
 });
 
+// ===== ЭНДПОИНТ ДЛЯ СБОРА НАГРАД (опционально) =====
+app.post('/claim-rewards', async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Не авторизован' });
+  // Просто возвращаем актуальное количество монет
+  const data = await getPlayerData(user.id);
+  res.json({ coins: data ? data.coins : 0 });
+});
+
 app.get('/leaderboard', (req, res) => {
   db.all(
     `SELECT u.username, p.level, p.limit_score, p.coins

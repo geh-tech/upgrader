@@ -358,7 +358,7 @@ function playHand() {
   document.getElementById('resultMessage').className = 'result info';
 
   updateStatsAfterGame(handType, false);
-  // ВАЖНО: проверяем задания после каждого хода
+  // Проверяем задания после каждого хода
   checkQuestProgress(handType, false, 0);
 
   if (handsLeft === 0) {
@@ -463,7 +463,7 @@ function updateStatsAfterGame(handType, win) {
   }
 }
 
-// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА С ПОДРОБНЫМИ ЛОГАМИ =====
+// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА =====
 function checkQuestProgress(handType, win, levelGain = 0) {
   console.log('🔍 Проверка заданий...', { handType, win, levelGain });
   fetch('/quests')
@@ -737,7 +737,10 @@ async function showQuests() {
         <div id="questsList" style="max-height:60vh;overflow-y:auto;margin-top:15px;">
           ${content}
         </div>
-        <button onclick="closeQuests()" class="close-btn" style="margin-top:15px;display:block;margin-left:auto;margin-right:auto;padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+        <div style="display:flex;gap:10px;margin-top:15px;justify-content:center;">
+          <button onclick="claimRewards()" class="upgrade-select-btn">🪙 Забрать награды</button>
+          <button onclick="closeQuests()" class="close-btn" style="padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
@@ -756,6 +759,14 @@ function closeQuests() {
     modal.remove();
     questsModalOpen = false;
   }
+}
+
+// ===== КНОПКА "ЗАБРАТЬ НАГРАДЫ" =====
+function claimRewards() {
+  loadCoins();
+  showMessage('🪙 Награды получены!', 'success');
+  // Также обновляем список заданий, чтобы скрыть выполненные
+  if (questsModalOpen) loadQuestsForModal();
 }
 
 // ===== ОТОБРАЖЕНИЕ =====
