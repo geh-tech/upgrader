@@ -138,6 +138,7 @@ function initStats(userId) {
   });
 }
 
+// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА =====
 function generateShopItems() {
   const items = [];
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
@@ -212,45 +213,80 @@ function generateShopItems() {
 const SHOP_ITEMS = generateShopItems();
 console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
 
-// ===== НОВАЯ ФУНКЦИЯ ГЕНЕРАЦИИ ЗАДАНИЙ (ВСЁ ПО 1 РАЗУ) =====
+// ===== ГЕНЕРАЦИЯ ЛЁГКИХ ЗАДАНИЙ (все по 1 разу, кроме побед и стриков) =====
 function generateAchievements() {
-  const types = [
-    { id: 'win', desc: 'Победить в раунде', reward: 10 },
-    { id: 'streak', desc: 'Победить 3 раза подряд', reward: 15 },
-    { id: 'pair', desc: 'Выбросить пару', reward: 5 },
-    { id: 'two_pair', desc: 'Выбросить две пары', reward: 8 },
-    { id: 'three', desc: 'Выбросить тройку', reward: 10 },
-    { id: 'straight', desc: 'Выбросить стрит', reward: 15 },
-    { id: 'full_house', desc: 'Выбросить фулл-хаус', reward: 20 },
-    { id: 'four', desc: 'Выбросить каре', reward: 25 },
-    { id: 'five', desc: 'Выбросить пять одинаковых', reward: 30 },
-    { id: 'broken_straight', desc: 'Выбросить ломаный стрит', reward: 12 },
-    { id: 'poker', desc: 'Выбросить покер', reward: 18 },
-    { id: 'royal', desc: 'Выбросить рояль', reward: 25 },
-    { id: 'total_games', desc: 'Сыграть раунд', reward: 5 },
-    { id: 'level_up', desc: 'Повысить уровень', reward: 20 },
-    { id: 'reroll', desc: 'Сделать переброс', reward: 3 }
-  ];
-
   const achievements = [];
-  for (let i = 0; i < 100; i++) {
-    const base = types[i % types.length];
-    const variant = Math.floor(i / types.length);
-    let target = 1;
-    if (base.id === 'streak') target = 3;
-    const reward = Math.floor(base.reward + variant * 2);
+  // Базовые задания для комбинаций – достаточно 1 раза
+  const comboTypes = [
+    { id: 'pair', desc: 'Выбросить пару', target: 1, reward: 10 },
+    { id: 'two_pair', desc: 'Выбросить две пары', target: 1, reward: 15 },
+    { id: 'three', desc: 'Выбросить тройку', target: 1, reward: 20 },
+    { id: 'straight', desc: 'Выбросить стрит', target: 1, reward: 25 },
+    { id: 'full_house', desc: 'Выбросить фулл-хаус', target: 1, reward: 30 },
+    { id: 'four', desc: 'Выбросить каре', target: 1, reward: 40 },
+    { id: 'five', desc: 'Выбросить пять одинаковых', target: 1, reward: 50 },
+    { id: 'broken_straight', desc: 'Выбросить ломаный стрит', target: 1, reward: 20 },
+    { id: 'poker', desc: 'Выбросить покер', target: 1, reward: 25 },
+    { id: 'royal', desc: 'Выбросить рояль', target: 1, reward: 35 }
+  ];
+  for (const combo of comboTypes) {
     achievements.push({
-      id: `${base.id}_${i}`,
-      desc: base.desc,
-      target: target,
-      reward: reward,
-      type: base.id
+      id: `${combo.id}_1`,
+      desc: combo.desc,
+      target: combo.target,
+      reward: combo.reward,
+      type: combo.id
+    });
+  }
+  // Победы – 1, 2, 3 раза
+  const winTargets = [1, 2, 3];
+  for (const t of winTargets) {
+    achievements.push({
+      id: `win_${t}`,
+      desc: `Выиграть ${t} раунд${t>1?'а':' '}`,
+      target: t,
+      reward: 10 * t,
+      type: 'win'
+    });
+  }
+  // Стрики – 1, 2, 3 раза подряд
+  const streakTargets = [1, 2, 3];
+  for (const t of streakTargets) {
+    achievements.push({
+      id: `streak_${t}`,
+      desc: `Победить ${t} раз${t>1?'а':' '} подряд`,
+      target: t,
+      reward: 15 * t,
+      type: 'streak'
+    });
+  }
+  // Общее количество игр – 1, 3, 5
+  const gameTargets = [1, 3, 5];
+  for (const t of gameTargets) {
+    achievements.push({
+      id: `total_games_${t}`,
+      desc: `Сыграть ${t} раунд${t>1?'ов':' '}`,
+      target: t,
+      reward: 5 * t,
+      type: 'total_games'
+    });
+  }
+  // Повышение уровня – 1, 2, 3
+  const levelTargets = [1, 2, 3];
+  for (const t of levelTargets) {
+    achievements.push({
+      id: `level_up_${t}`,
+      desc: `Повысить уровень на ${t}`,
+      target: t,
+      reward: 15 * t,
+      type: 'level_up'
     });
   }
   return achievements;
 }
 
 const ALL_ACHIEVEMENTS = generateAchievements();
+console.log(`✅ Сгенерировано ${ALL_ACHIEVEMENTS.length} заданий`);
 
 // ===== API =====
 

@@ -357,7 +357,10 @@ function playHand() {
   document.getElementById('resultMessage').textContent = `Ход: ${bone} × ${multiplier} = ${handTotal} (всего: ${roundTotal})`;
   document.getElementById('resultMessage').className = 'result info';
 
+  // Обновляем статистику комбинаций
   updateStatsAfterGame(handType, false);
+  // Проверяем задания (комбинации, победы и т.д.)
+  checkQuestProgress(handType, false);
 
   if (handsLeft === 0) {
     const isWin = roundTotal >= limit;
@@ -385,6 +388,7 @@ function playHand() {
       if (stats.current_streak > stats.best_streak) stats.best_streak = stats.current_streak;
       stats.total_games++;
       saveProgress();
+      // Ещё раз проверяем задания (победа, стрик)
       checkQuestProgress(handType, true);
       showUpgradeModal();
     } else {
@@ -441,7 +445,6 @@ function updateStatsDisplay() {
 
 // ===== СТАТИСТИКА =====
 function updateStatsAfterGame(handType, win) {
-  // Здесь мы просто собираем статистику комбинаций, но не увеличиваем total_games и т.д. – это делается при победе/поражении
   switch(handType) {
     case 'pair': stats.pair_count++; break;
     case 'twoPair': stats.two_pair_count++; break;
@@ -457,32 +460,34 @@ function updateStatsAfterGame(handType, win) {
   }
 }
 
-// ===== АЧИВКИ (ЗАДАНИЯ) =====
+// ===== АЧИВКИ (ЗАДАНИЯ) – обновлённая логика =====
 function checkQuestProgress(handType, win) {
   fetch('/quests')
     .then(res=>res.json())
     .then(quests=>{
       quests.forEach(q=>{
         if(q.completed) return;
-        let increment=0;
-        const type=q.quest_id.split('_')[0];
+        let increment = 0;
+        const type = q.quest_id.split('_')[0];
         switch(type){
-          case 'win': if(win) increment=1; break;
-          case 'streak': increment=stats.current_streak; break;
-          case 'pair': if(handType==='pair') increment=1; break;
-          case 'two_pair': if(handType==='twoPair') increment=1; break;
-          case 'three': if(handType==='three') increment=1; break;
-          case 'straight': if(handType==='straight') increment=1; break;
-          case 'full_house': if(handType==='fullHouse') increment=1; break;
-          case 'four': if(handType==='four') increment=1; break;
-          case 'five': if(handType==='five') increment=1; break;
-          case 'broken_straight': if(handType==='brokenStraight') increment=1; break;
-          case 'poker': if(handType==='poker'||handType==='twoPair') increment=1; break;
-          case 'royal': if(handType==='royal') increment=1; break;
-          case 'total_games': increment=1; break;
+          case 'win': if(win) increment = 1; break;
+          case 'streak': if(win) increment = stats.current_streak; break;
+          case 'pair': if(handType==='pair') increment = 1; break;
+          case 'two_pair': if(handType==='twoPair') increment = 1; break;
+          case 'three': if(handType==='three') increment = 1; break;
+          case 'straight': if(handType==='straight') increment = 1; break;
+          case 'full_house': if(handType==='fullHouse') increment = 1; break;
+          case 'four': if(handType==='four') increment = 1; break;
+          case 'five': if(handType==='five') increment = 1; break;
+          case 'broken_straight': if(handType==='brokenStraight') increment = 1; break;
+          case 'poker': if(handType==='poker'||handType==='twoPair') increment = 1; break;
+          case 'royal': if(handType==='royal') increment = 1; break;
+          case 'total_games': if(win || !win) increment = 1; break; // считаем каждый раунд
+          case 'level_up': // сложнее – будем отслеживать отдельно, но пока пропустим
+            break;
           default: break;
         }
-        if(increment>0){
+        if (increment > 0) {
           fetch('/quest-progress',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
