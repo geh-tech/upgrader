@@ -163,6 +163,131 @@ console.log(`✅ Сгенерировано ${ALL_UPGRADES.length} улучше�
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const diceElements = document.querySelectorAll('.dice');
 
+// ===== ЗВУКИ (Web Audio API) =====
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playSound(type) {
+  try {
+    initAudio();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.type = 'sine';
+    gainNode.gain.value = 0.15;
+
+    switch (type) {
+      case 'click':
+        oscillator.frequency.value = 800;
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.1);
+        break;
+      case 'roll':
+        oscillator.frequency.value = 400;
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.15);
+        break;
+      case 'win':
+        oscillator.frequency.setValueAtTime(523, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.4);
+        break;
+      case 'lose':
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(200, audioCtx.currentTime + 0.2);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.4);
+        break;
+      case 'upgrade':
+        oscillator.frequency.setValueAtTime(500, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.08);
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.16);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.3);
+        break;
+      default:
+        break;
+    }
+  } catch (e) {
+    // Подавляем ошибки звука
+  }
+}
+
+// ===== ЧАСТИЦЫ =====
+function createParticles(x, y, count, color, spread) {
+  const container = document.getElementById('particlesContainer');
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    const size = Math.random() * 8 + 4;
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.random() * spread + 50;
+    const tx = Math.cos(angle) * distance;
+    const ty = Math.sin(angle) * distance;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    particle.style.background = color;
+    particle.style.left = (x - size/2) + 'px';
+    particle.style.top = (y - size/2) + 'px';
+    particle.style.setProperty('--tx', tx + 'px');
+    particle.style.setProperty('--ty', ty + 'px');
+    particle.style.animationDuration = (Math.random() * 0.6 + 0.4) + 's';
+    container.appendChild(particle);
+    setTimeout(() => particle.remove(), 1200);
+  }
+}
+
+function spawnWinParticles() {
+  const rect = document.getElementById('resultMessage').getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  createParticles(cx, cy, 40, '#69db7c', 300);
+  createParticles(cx - 50, cy - 30, 20, '#ffd700', 200);
+}
+
+function spawnLoseParticles() {
+  const rect = document.getElementById('resultMessage').getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  createParticles(cx, cy, 30, '#ff6b6b', 250);
+  createParticles(cx + 40, cy - 20, 15, '#ff4444', 180);
+}
+
+function spawnUpgradeParticles() {
+  const container = document.querySelector('.upgrade-modal-content');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  createParticles(cx, cy, 50, '#ffd700', 350);
+  createParticles(cx - 60, cy - 40, 25, '#ff8c00', 250);
+}
+
+// ===== ВСПЫШКА =====
+function flashOverlay(type) {
+  const overlay = document.getElementById('flashOverlay');
+  overlay.className = '';
+  // Триггер перерисовки
+  void overlay.offsetWidth;
+  overlay.className = type === 'win' ? 'flash-win' : 'flash-lose';
+  setTimeout(() => { overlay.className = ''; }, 900);
+}
+
+// ===== DICE CLICK =====
 diceElements.forEach((el, i) => {
   el.addEventListener('click', () => {
     if (!hasRolled || isRolling || !roundActive) return;
@@ -170,10 +295,11 @@ diceElements.forEach((el, i) => {
     el.classList.toggle('selected');
     const anySelected = selectedDice.some(v => v);
     document.getElementById('rerollBtn').disabled = !anySelected || rerollsLeft <= 0;
+    if (selectedDice[i]) playSound('click');
   });
 });
 
-// ===== СБРОС ИГРЫ (ПРИ ПОРАЖЕНИИ) =====
+// ===== СБРОС ИГРЫ =====
 function resetGame() {
   level = 1;
   limit = 50;
@@ -184,7 +310,6 @@ function resetGame() {
   document.getElementById('limitDisplay').textContent = limit;
   renderInventory();
   saveProgress();
-  // Запускаем новый раунд с начальными данными
   roundActive = false;
   setTimeout(() => {
     startRound();
@@ -215,7 +340,7 @@ function startRound() {
   for (let i = 0; i < 5; i++) {
     dice[i] = Math.floor(Math.random() * 6) + 1;
   }
-  updateDiceDisplay();
+  updateDiceDisplay(true);
   updateStats();
   updateRerollDisplay();
   updateHandsDisplay();
@@ -248,7 +373,8 @@ function rerollSelected() {
   }
 
   rerollsLeft--;
-  updateDiceDisplay();
+  playSound('roll');
+  updateDiceDisplay(true);
   updateStats();
   updateRerollDisplay();
   document.getElementById('rerollBtn').disabled = true;
@@ -268,8 +394,9 @@ function playHand() {
 
   document.getElementById('playBtn').disabled = true;
   document.getElementById('rerollBtn').disabled = true;
+  playSound('click');
 
-  // Рассчёт костей и множителя
+  // Рассчёт
   let bone = dice.reduce((a, b) => a + b, 0) + (passiveBonuses.bones || 0);
   if (passiveBonuses.combo_bones_mult) {
     bone += passiveBonuses.combo_bones_mult.bones || 0;
@@ -305,15 +432,21 @@ function playHand() {
     document.getElementById('levelDisplay').textContent = level;
     document.getElementById('limitDisplay').textContent = limit;
 
+    // Эффекты победы
+    playSound('win');
+    flashOverlay('win');
+    spawnWinParticles();
+
     saveProgress();
     showUpgradeModal();
   } else {
-    // ПОРАЖЕНИЕ – сброс игры
+    // ПОРАЖЕНИЕ
     resultEl.className = 'result lose';
     resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
-    // Полный сброс
+    playSound('lose');
+    flashOverlay('lose');
+    spawnLoseParticles();
     resetGame();
-    // Обновляем отображение (уже внутри resetGame)
   }
 
   handsLeft--;
@@ -323,9 +456,6 @@ function playHand() {
     roundActive = false;
     document.getElementById('playBtn').disabled = true;
     document.getElementById('rerollBtn').disabled = true;
-  } else if (!isWin) {
-    // Если проиграли, но руки ещё есть – сброс уже произошёл, но код продолжит
-    // На самом деле resetGame перезапускает раунд, так что этот блок не нужен.
   }
 }
 
@@ -354,6 +484,9 @@ function showUpgradeModal() {
   `;
   document.body.appendChild(modal);
   window._currentUpgrades = selected;
+  // Звук и частицы при открытии
+  playSound('upgrade');
+  setTimeout(spawnUpgradeParticles, 300);
 }
 
 function applyUpgrade(index) {
@@ -383,6 +516,7 @@ function applyUpgrade(index) {
     showMessage(`✅ Получен череп: +${value} к ${bonusNames[bonus] || bonus}!`, 'success');
   }
 
+  // Добавляем в инвентарь
   const inventoryItem = {
     id: upgrade.id,
     name: upgrade.name,
@@ -394,6 +528,10 @@ function applyUpgrade(index) {
   };
   inventory.push(inventoryItem);
   renderInventory();
+
+  // Эффект выбора
+  playSound('upgrade');
+  spawnUpgradeParticles();
 
   const modal = document.querySelector('.upgrade-modal');
   if (modal) modal.remove();
@@ -441,12 +579,17 @@ function getHandName(type) {
 
 // ===== ОТОБРАЖЕНИЕ =====
 
-function updateDiceDisplay() {
+function updateDiceDisplay(animate = false) {
   diceElements.forEach((el, i) => {
     if (dice[i] >= 1 && dice[i] <= 6) {
       el.textContent = DICE_FACES[dice[i] - 1];
     } else {
       el.textContent = '⚀';
+    }
+    if (animate) {
+      el.classList.remove('rolling');
+      void el.offsetWidth;
+      el.classList.add('rolling');
     }
   });
 }
@@ -504,7 +647,6 @@ function renderInventory() {
       }
     }
     let activeClass = '';
-    // Активен только если это рука и она совпадает с текущей
     if (isHand && item.hand === currentHandType) {
       activeClass = ' active';
     }
@@ -539,6 +681,7 @@ async function saveProgress() {
 }
 
 // ===== АВТОРИЗАЦИЯ =====
+
 async function register() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();

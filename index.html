@@ -11,6 +11,10 @@
 </head>
 <body>
 
+<!-- Контейнер для частиц и вспышек -->
+<div id="particlesContainer"></div>
+<div id="flashOverlay"></div>
+
 <div class="container">
   <div class="header">
     <h1>🎲 Dice of Kalma</h1>
@@ -32,7 +36,7 @@
       <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
 
-    <!-- ===== НОВЫЙ БЛОК: УРОВЕНЬ И ЛИМИТ ОТДЕЛЬНО ===== -->
+    <!-- Прогресс (уровень и лимит) -->
     <div class="progress-bar">
       <div class="progress-item">
         <span class="progress-label">Уровень</span>
@@ -40,11 +44,11 @@
       </div>
       <div class="progress-item">
         <span class="progress-label">Лимит</span>
-        <span class="progress-value" id="limitDisplay">25</span>
+        <span class="progress-value" id="limitDisplay">50</span>
       </div>
     </div>
 
-    <!-- ===== СТАТУС БАР: КОСТЬ, МНОЖ, ИТОГ ===== -->
+    <!-- Статус (кость, множ, итог) -->
     <div class="status-bar">
       <div class="status-item">
         <span class="label">Кость</span>
