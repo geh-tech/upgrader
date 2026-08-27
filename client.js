@@ -357,9 +357,7 @@ function playHand() {
   document.getElementById('resultMessage').textContent = `Ход: ${bone} × ${multiplier} = ${handTotal} (всего: ${roundTotal})`;
   document.getElementById('resultMessage').className = 'result info';
 
-  // Обновляем статистику
   updateStatsAfterGame(handType, false);
-  // Проверяем задания (комбинации, победы, стрики, уровень)
   checkQuestProgress(handType, false, 0);
 
   if (handsLeft === 0) {
@@ -371,9 +369,9 @@ function playHand() {
       flashOverlay('win');
       spawnWinParticles();
 
-      // === ПОВЫШЕНИЕ УРОВНЯ ===
       const levelGain = 1 + (passiveBonuses.extra_level || 0);
       level += levelGain;
+
       if (level % 10 === 0) {
         baseHands++;
         showMessage(`🎉 Уровень ${level}! +1 рука навсегда! (теперь ${baseHands})`,'success');
@@ -391,7 +389,6 @@ function playHand() {
       stats.total_games++;
       saveProgress();
 
-      // Проверяем задания с учётом повышения уровня
       checkQuestProgress(handType, true, levelGain);
 
       showUpgradeModal();
@@ -464,83 +461,54 @@ function updateStatsAfterGame(handType, win) {
   }
 }
 
-// ============================================================
-// ===== НОВАЯ ВЕРСИЯ checkQuestProgress С ОТЛАДКОЙ =====
-// ============================================================
+// ===== АЧИВКИ (ЗАДАНИЯ) – ИСПРАВЛЕННАЯ ЛОГИКА =====
 function checkQuestProgress(handType, win, levelGain = 0) {
   console.log('🔍 Проверка заданий...', { handType, win, levelGain });
-
   fetch('/quests')
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    })
+    .then(res => res.json())
     .then(quests => {
       console.log('📋 Получены задания:', quests);
-
-      // Фильтруем только невыполненные
-      const activeQuests = quests.filter(q => !q.completed);
-      if (activeQuests.length === 0) {
-        console.log('✅ Все задания уже выполнены!');
-        return;
-      }
-
-      // Проходим по каждому заданию и вычисляем прирост
-      activeQuests.forEach(q => {
+      quests.forEach(q => {
+        if (q.completed) return;
         let increment = 0;
-        const type = q.quest_id.split('_')[0];
-        console.log(`📌 Задание: ${q.desc}, тип: ${type}, текущий прогресс: ${q.progress}/${q.target}`);
-
-        switch(type){
-          case 'win':
-            if (win) increment = 1;
-            break;
-          case 'streak':
-            if (win) increment = stats.current_streak;
-            break;
-          case 'pair':
-            if (handType === 'pair') increment = 1;
-            break;
-          case 'two_pair':
-            if (handType === 'twoPair') increment = 1;
-            break;
-          case 'three':
-            if (handType === 'three') increment = 1;
-            break;
-          case 'straight':
-            if (handType === 'straight') increment = 1;
-            break;
-          case 'full_house':
-            if (handType === 'fullHouse') increment = 1;
-            break;
-          case 'four':
-            if (handType === 'four') increment = 1;
-            break;
-          case 'five':
-            if (handType === 'five') increment = 1;
-            break;
-          case 'broken_straight':
-            if (handType === 'brokenStraight') increment = 1;
-            break;
-          case 'poker':
-            if (handType === 'poker' || handType === 'twoPair') increment = 1;
-            break;
-          case 'royal':
-            if (handType === 'royal') increment = 1;
-            break;
-          case 'total_games':
-            increment = 1; // считаем каждый раунд
-            break;
-          case 'level_up':
-            if (levelGain > 0) increment = levelGain;
-            break;
-          default:
-            console.warn(`⚠️ Неизвестный тип задания: ${type}`);
-            break;
+        const id = q.quest_id;
+        console.log(`📌 Задание: ${q.desc}, тип: ${id}, текущий прогресс: ${q.progress}/${q.target}`);
+        
+        // Обработка комбинаций
+        if (id.startsWith('pair_')) {
+          if (handType === 'pair') increment = 1;
+        } else if (id.startsWith('two_pair_')) {
+          if (handType === 'twoPair' || handType === 'poker') increment = 1;
+        } else if (id.startsWith('three_')) {
+          if (handType === 'three') increment = 1;
+        } else if (id.startsWith('straight_')) {
+          if (handType === 'straight') increment = 1;
+        } else if (id.startsWith('full_house_')) {
+          if (handType === 'fullHouse') increment = 1;
+        } else if (id.startsWith('four_')) {
+          if (handType === 'four') increment = 1;
+        } else if (id.startsWith('five_')) {
+          if (handType === 'five') increment = 1;
+        } else if (id.startsWith('broken_straight_')) {
+          if (handType === 'brokenStraight') increment = 1;
+        } else if (id.startsWith('poker_')) {
+          if (handType === 'poker' || handType === 'twoPair') increment = 1;
+        } else if (id.startsWith('royal_')) {
+          if (handType === 'royal') increment = 1;
+        } else if (id.startsWith('win_')) {
+          if (win) increment = 1;
+        } else if (id.startsWith('streak_')) {
+          if (win) increment = stats.current_streak;
+        } else if (id.startsWith('total_games_')) {
+          increment = 1;
+        } else if (id.startsWith('level_up_')) {
+          if (levelGain > 0) increment = levelGain;
+        } else {
+          console.log(`⚠️ Неизвестный тип задания: ${id}`);
         }
 
         if (increment > 0) {
-          console.log(`📈 Отправляем прирост ${increment} для задания ${q.quest_id}`);
+          console.log(`📈 Отправляем прирост ${increment} для задания ${id}`);
           fetch('/quest-progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -549,32 +517,26 @@ function checkQuestProgress(handType, win, levelGain = 0) {
           .then(res => res.json())
           .then(data => {
             if (data.completed) {
-              console.log(`🎉 Задание выполнено! ${q.desc}`);
               showMessage(`🎉 Задание выполнено! +${q.reward} монет!`, 'success');
               spawnCoinParticles();
               loadCoins();
-              // Если модалка открыта, обновим её
-              if (document.getElementById('questsModal')) {
-                loadQuestsForModal();
-              }
-            } else {
-              console.log(`⏳ Прогресс задания: ${data.progress || 'неизвестно'}`);
+              loadQuestsForModal();
             }
           })
-          .catch(err => console.error('❌ Ошибка отправки прогресса:', err));
+          .catch(err => console.error('Ошибка обновления задания:', err));
         } else {
-          console.log(`⏭️ Задание ${q.quest_id} не подходит под текущие условия.`);
+          console.log(`⏭️ Задание ${id} не подходит под текущие условия.`);
         }
       });
     })
-    .catch(err => {
-      console.error('❌ Ошибка загрузки заданий:', err);
-      showMessage('Ошибка загрузки заданий', 'error');
-    });
+    .catch(err => console.error('Ошибка загрузки заданий:', err));
 }
 
 // ===== Загрузка заданий для модального окна =====
+let questsModalOpen = false;
+
 function loadQuestsForModal() {
+  if (!questsModalOpen) return;
   const container = document.getElementById('questsList');
   if (!container) return;
   fetch('/quests')
@@ -730,8 +692,6 @@ async function buyPermanentUpgrade(itemId) {
 }
 
 // ===== ЗАДАНИЯ (МОДАЛКА) =====
-let questsModalOpen = false;
-
 async function showQuests() {
   questsModalOpen = true;
   try {
@@ -764,7 +724,6 @@ async function showQuests() {
       </div>
     `;
     document.body.appendChild(modal);
-    // При закрытии модалки сбрасываем флаг
     modal.querySelector('.close-btn').addEventListener('click', () => {
       questsModalOpen = false;
     });
