@@ -251,8 +251,6 @@ function resetGame() {
   const comboMult = Object.values(shopProgress)
     .filter(p => p.id && p.id.startsWith('shop_combo_'))
     .reduce((sum, p) => sum + (p.value.mult || 0), 0);
-  // Редкие предметы тоже могут быть в shopProgress, но они имеют такие же префиксы (shop_passive_...)
-  // Поэтому они уже учтены в фильтрах выше.
 
   baseHands = 3 + handsBonus;
   passiveBonuses.rerolls = rerollsBonus;
@@ -260,11 +258,9 @@ function resetGame() {
   passiveBonuses.mult = multBonus + comboMult;
   passiveBonuses.extra_hands = handsBonus;
   passiveBonuses.extra_level = extraLevelBonus;
-  // Применяем скидку лимита
   limit = 50 - limitReduction;
   if (limit < 10) limit = 10;
 
-  // Сбрасываем инвентарь (временные улучшения)
   inventory = [];
   handUpgrades = { high:0, pair:0, twoPair:0, three:0, straight:0, fullHouse:0, four:0, five:0, brokenStraight:0, poker:0, royal:0 };
   stats = { total_wins:0, total_games:0, current_streak:0, best_streak:0, pair_count:0, two_pair_count:0, three_count:0, straight_count:0, full_house_count:0, four_count:0, five_count:0, broken_straight_count:0, poker_count:0, royal_count:0 };
@@ -729,24 +725,40 @@ function loadQuests(){
     });
 }
 
-// ===== ПАНЕЛИ (исправлено: добавил console.log для отладки) =====
+// ===== ПАНЕЛИ (исправлено: создаём панель, если её нет) =====
 function togglePanel(type) {
   console.log(`🔘 togglePanel вызван для: ${type}`);
-  const panels = {
-    leaderboard: document.getElementById('leaderboardPanel'),
-    chat: document.getElementById('chatPanel'),
-    quests: document.getElementById('questsPanel')
-  };
-  const panel = panels[type];
+  // Если панели нет в DOM, создаём её
+  let panel = document.getElementById(`${type}Panel`);
   if (!panel) {
-    console.error(`❌ Панель ${type} не найдена`);
-    return;
+    console.warn(`⚠️ Панель ${type}Panel не найдена, создаём динамически`);
+    panel = document.createElement('div');
+    panel.id = `${type}Panel`;
+    panel.className = `slide-panel ${type === 'leaderboard' ? 'left' : 'right'}`;
+    panel.style.transform = type === 'leaderboard' ? 'translateX(-110%)' : 'translateX(110%)';
+    panel.innerHTML = `
+      <div class="panel-header">
+        <h2>${type === 'leaderboard' ? '🏆 Лидерборд' : type === 'chat' ? '💬 Чат' : '📋 Задания'}</h2>
+        <button class="close-panel" onclick="togglePanel('${type}')">✕</button>
+      </div>
+      <div id="${type}List"></div>
+      ${type === 'chat' ? `
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Сообщение..." maxlength="200" />
+          <button onclick="sendMessage()">Отправить</button>
+        </div>
+      ` : ''}
+    `;
+    document.body.appendChild(panel);
   }
+
   if (panel.classList.contains('open')) {
     panel.classList.remove('open');
   } else {
-    Object.values(panels).forEach(p => p && p.classList.remove('open'));
+    // Закрыть все остальные
+    document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('open'));
     panel.classList.add('open');
+    // Загрузить данные
     if (type === 'leaderboard') loadLeaderboard();
     if (type === 'chat') loadChat();
     if (type === 'quests') loadQuests();

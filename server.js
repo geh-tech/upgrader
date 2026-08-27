@@ -138,32 +138,34 @@ function initStats(userId) {
   });
 }
 
-// ===== ГЕНЕРАЦИЯ 120+ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА =====
+// ===== ГЕНЕРАЦИЯ УНИКАЛЬНЫХ ПРЕДМЕТОВ МАГАЗИНА (БЕЗ ДУБЛЕЙ) =====
 function generateShopItems() {
   const items = [];
-  const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
+  // 1. Улучшения для каждой руки (только по одному, разные руки)
+  const handTypes = ['pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five', 'brokenStraight', 'poker', 'royal'];
   const handNames = {
-    high:'Старшая карта', pair:'Пара', twoPair:'Две пары', three:'Тройка',
+    pair:'Пара', twoPair:'Две пары', three:'Тройка',
     straight:'Стрит', fullHouse:'Фулл-хаус', four:'Каре', five:'Пять одинаковых',
     brokenStraight:'Ломаный стрит', poker:'Покер', royal:'Рояль'
   };
-  // Для каждой руки даём 2 уровня (чтобы не дублировать)
-  for (const hand of handTypes) {
-    for (let level = 1; level <= 2; level++) {
-      items.push({
-        id: `shop_hand_${hand}_${level}`,
-        name: `Вечный +${level} к ${handNames[hand]}`,
-        desc: `Навсегда +${level} множителя для ${handNames[hand]}`,
-        type: 'hand',
-        hand: hand,
-        value: level,
-        basePrice: 5
-      });
-    }
+  const bonuses = [2, 3, 4, 5]; // разные значения для разных рук
+  for (let i = 0; i < handTypes.length; i++) {
+    const hand = handTypes[i];
+    const bonus = bonuses[i % bonuses.length] + Math.floor(i / bonuses.length);
+    items.push({
+      id: `shop_hand_${hand}`,
+      name: `Вечный +${bonus} к ${handNames[hand]}`,
+      desc: `Навсегда +${bonus} множителя для ${handNames[hand]}`,
+      type: 'hand',
+      hand: hand,
+      value: bonus,
+      basePrice: 5
+    });
   }
-  // Пассивные бонусы (разные значения)
+
+  // 2. Пассивные бонусы (разные, без повторений)
   const passives = [
-    { id: 'bones', name: 'Кости', values: [3, 5, 8, 10] },
+    { id: 'bones', name: 'Кости', values: [3, 5, 8, 12] },
     { id: 'mult', name: 'Множитель', values: [1, 2] },
     { id: 'rerolls', name: 'Перебросы', values: [1, 2] },
     { id: 'hands', name: 'Руки', values: [1, 2] },
@@ -183,10 +185,11 @@ function generateShopItems() {
       });
     }
   }
-  // Комбинированные (кости+множ) – разные варианты
+
+  // 3. Комбинированные (кости+множ) – разные комбинации
   const combos = [
     { b: 2, m: 1 }, { b: 3, m: 2 }, { b: 5, m: 1 }, { b: 5, m: 2 },
-    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }
+    { b: 8, m: 1 }, { b: 8, m: 3 }, { b: 10, m: 2 }, { b: 10, m: 3 }
   ];
   for (let i = 0; i < combos.length; i++) {
     const c = combos[i];
@@ -200,7 +203,8 @@ function generateShopItems() {
       basePrice: 5
     });
   }
-  // Редкие усиления (большие значения)
+
+  // 4. Редкие усиления (большие значения)
   const rare = [
     { id: 'rare_hands_3', name: 'Вечные +3 руки', desc: 'Навсегда +3 руки за раунд', type: 'passive', bonus: 'extra_hands', value: 3 },
     { id: 'rare_hands_5', name: 'Вечные +5 рук', desc: 'Навсегда +5 рук за раунд', type: 'passive', bonus: 'extra_hands', value: 5 },
@@ -213,12 +217,12 @@ function generateShopItems() {
   for (const r of rare) {
     items.push({ ...r, basePrice: 5 });
   }
-  // Итого: 11*2 + 6*(4+2+2+2+3+2) + 7 + 7 = 22 + 6*15 = 22+90+7+7 = 126
+
   return items;
 }
 
 const SHOP_ITEMS = generateShopItems();
-console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} предметов магазина`);
+console.log(`✅ Сгенерировано ${SHOP_ITEMS.length} уникальных предметов магазина`);
 
 // ===== ГЕНЕРАЦИЯ АЧИВОК =====
 function generateAchievements() {
@@ -410,7 +414,7 @@ app.get('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// ===== АЧИВКИ =====
+// ===== КВЕСТЫ =====
 app.get('/quests', async (req, res) => {
   const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Не авторизован' });
