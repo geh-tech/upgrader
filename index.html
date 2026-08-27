@@ -15,7 +15,7 @@
 <div id="particlesContainer"></div>
 <div id="flashOverlay"></div>
 
-<!-- Боковые панели (только лидерборд и чат) -->
+<!-- Боковые панели (лидерборд и чат) -->
 <div id="leaderboardPanel" class="slide-panel left">
   <div class="panel-header">
     <h2>🏆 Лидерборд</h2>
@@ -51,6 +51,7 @@
     <button class="top-btn" onclick="showShop()">🛒</button>
   </div>
 
+  <!-- Авторизация -->
   <div id="authSection" class="auth-section">
     <input type="text" id="loginUsername" placeholder="Логин" />
     <input type="password" id="loginPassword" placeholder="Пароль" />
@@ -58,12 +59,14 @@
     <button onclick="register()">Регистрация</button>
   </div>
 
+  <!-- Игровой интерфейс -->
   <div id="gameSection" style="display:none;">
     <div class="user-info">
       <span>Привет, <span id="usernameDisplay"></span></span>
       <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
 
+    <!-- Прогресс (уровень и лимит) -->
     <div class="progress-bar">
       <div class="progress-item">
         <span class="progress-label">Уровень</span>
@@ -75,6 +78,7 @@
       </div>
     </div>
 
+    <!-- Статус (кость, множитель, итог, ходы) -->
     <div class="status-bar">
       <div class="status-item">
         <span class="label">Кость</span>
@@ -88,8 +92,13 @@
         <span class="label">Итог</span>
         <span class="value" id="totalDisplay">0</span>
       </div>
+      <div class="status-item">
+        <span class="label">Ходы</span>
+        <span class="value" id="handCount">3</span>
+      </div>
     </div>
 
+    <!-- Кубики -->
     <div class="dice-container" id="diceContainer">
       <div class="dice" data-index="0">⚀</div>
       <div class="dice" data-index="1">⚁</div>
@@ -98,18 +107,21 @@
       <div class="dice" data-index="4">⚄</div>
     </div>
 
+    <!-- Информация о перебросах -->
     <div class="info-row">
       <span>🔄 Перебросов: <strong id="rerollCount">3</strong></span>
-      <span>🎯 Рук: <strong id="handCount">3</strong></span>
     </div>
 
+    <!-- Кнопки -->
     <div class="actions">
       <button onclick="rerollSelected()" id="rerollBtn" disabled>🔄 Переброс</button>
       <button onclick="playHand()" id="playBtn" disabled>🎯 Играть руку</button>
     </div>
 
+    <!-- Результат -->
     <div id="resultMessage" class="result"></div>
 
+    <!-- Инвентарь -->
     <div class="inventory-section">
       <h3>📦 Инвентарь</h3>
       <div id="inventoryContainer" class="inventory-grid"></div>
@@ -125,14 +137,14 @@
     <h2>🎓 Добро пожаловать в Dice of Kalma!</h2>
     <div class="tutorial-steps">
       <p>1. <strong>Бросьте кубики</strong> – они выпадут случайно.</p>
-      <p>2. <strong>Выберите кубики</strong> (кликните на них) и нажмите «Переброс», чтобы улучшить результат (до 3 раз).</p>
-      <p>3. Нажмите <strong>«Играть руку»</strong>, чтобы зафиксировать результат.</p>
-      <p>4. Ваша <strong>кость</strong> – сумма всех кубиков. <strong>Множитель</strong> зависит от комбинации.</p>
-      <p>5. Цель – набрать <strong>итог ≥ лимит</strong>. Победа повышает уровень и лимит.</p>
-      <p>6. За победу вы получаете <strong>улучшение</strong> (выберите из трёх).</p>
-      <p>7. Собирайте улучшения, они дают мощные бонусы!</p>
-      <p>8. Слева/справа – <strong>лидерборд, задания и чат</strong>.</p>
-      <p>9. За выполнение заданий вы получаете <strong>монеты</strong>!</p>
+      <p>2. <strong>Выберите кубики</strong> (кликните на них) и нажмите «Переброс», чтобы улучшить результат (до 3 раз за ход).</p>
+      <p>3. Нажмите <strong>«Играть руку»</strong>, чтобы зафиксировать ход и добавить его итог в общий счёт.</p>
+      <p>4. У вас есть несколько ходов (рук). После каждого хода кубики перебрасываются автоматически.</p>
+      <p>5. Цель – набрать <strong>накопленный итог ≥ лимит</strong> по окончании всех ходов.</p>
+      <p>6. Если лимит побит – победа! Вы повышаете уровень и получаете улучшение.</p>
+      <p>7. Если ходы закончились, а лимит не побит – поражение и сброс прогресса.</p>
+      <p>8. Собирайте улучшения, они дают мощные бонусы!</p>
+      <p>9. За выполнение заданий вы получаете <strong>монеты</strong> для магазина вечных улучшений.</p>
     </div>
     <button onclick="closeTutorial()" class="upgrade-select-btn">Начать игру!</button>
   </div>

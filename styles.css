@@ -165,14 +165,14 @@ h1 {
 }
 
 .status-bar {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
   background: rgba(0,0,0,0.3); border-radius: 20px; padding: 10px 8px; margin: 0 0 15px 0;
   border: 1px solid rgba(255,255,255,0.05);
 }
 .status-item { text-align: center; }
 .status-item .label { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 2px; }
 .status-item .value {
-  display: block; font-size: 1.6rem; font-weight: 700; font-family: 'Orbitron', monospace;
+  display: block; font-size: 1.4rem; font-weight: 700; font-family: 'Orbitron', monospace;
   color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.2); line-height: 1.2;
 }
 
@@ -192,7 +192,7 @@ h1 {
 @keyframes diceRoll { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.2); } 100% { transform: rotate(360deg) scale(1); } }
 
 .info-row {
-  display: flex; justify-content: space-around; margin: 10px 0 15px;
+  display: flex; justify-content: center; margin: 10px 0 15px;
   font-size: 1rem; color: #aaa; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 30px;
 }
 .info-row strong { color: #ffd700; font-size: 1.2rem; font-family: 'Orbitron', monospace; }
@@ -300,6 +300,8 @@ h1 {
 .shop-item { transition: 0.2s; }
 .shop-item:hover { border-color: #ffd700; background: rgba(255,215,0,0.05); }
 
+.quest-modal-content { max-width: 500px; }
+
 .error-msg { color: #ff6b6b; text-align: center; margin: 10px 0; font-weight: 500; }
 .success-msg { color: #69db7c; text-align: center; margin: 10px 0; font-weight: 500; }
 
@@ -309,4 +311,5 @@ h1 {
   .slide-panel { width: 90%; }
   .top-bar { justify-content: center; }
   .actions button { padding: 12px 20px; font-size: 0.9rem; }
+  .status-bar { grid-template-columns: repeat(2, 1fr); }
 }

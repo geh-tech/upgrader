@@ -11,6 +11,8 @@ let selectedDice = [false,false,false,false,false];
 let rerollsLeft = 3;
 let handsLeft = 3;
 let baseHands = 3;
+let totalHands = 3;
+let roundTotal = 0;
 let isRolling = false;
 let hasRolled = false;
 let roundActive = false;
@@ -58,7 +60,6 @@ function generateAllUpgrades() {
       });
     }
   }
-  // Пассивки (сокращённо, но полный набор как в предыдущих версиях)
   for (let i=1; i<=6; i++) {
     const val=i*5;
     upgrades.push({ id:`passive_bones_${i}`, name:`💀 +${val} кости`, type:'passive', bonus:'bones', value:val, desc:`+${val} к костям` });
@@ -223,9 +224,9 @@ function getHandName(type) {
   return names[type]||type;
 }
 
-// ===== СБРОС ИГРЫ (с учётом вечных улучшений) =====
+// ===== СБРОС ИГРЫ (при поражении) =====
 function resetGame() {
-  level=1;
+  level = 1;
   const handsBonus = Object.values(shopProgress)
     .filter(p => p.id && p.id.startsWith('shop_hand_'))
     .reduce((sum, p) => sum + p.value, 0);
@@ -263,136 +264,185 @@ function resetGame() {
   inventory = [];
   handUpgrades = { high:0, pair:0, twoPair:0, three:0, straight:0, fullHouse:0, four:0, five:0, brokenStraight:0, poker:0, royal:0 };
   stats = { total_wins:0, total_games:0, current_streak:0, best_streak:0, pair_count:0, two_pair_count:0, three_count:0, straight_count:0, full_house_count:0, four_count:0, five_count:0, broken_straight_count:0, poker_count:0, royal_count:0 };
-  document.getElementById('levelDisplay').textContent=level;
-  document.getElementById('limitDisplay').textContent=limit;
+  document.getElementById('levelDisplay').textContent = level;
+  document.getElementById('limitDisplay').textContent = limit;
   renderInventory();
   saveProgress();
-  roundActive=false;
-  setTimeout(()=>startRound(),500);
+  roundActive = false;
+  setTimeout(() => startRound(), 500);
 }
 
-// ===== ИГРОВЫЕ ФУНКЦИИ =====
+// ===== НАЧАЛО НОВОГО РАУНДА =====
 function startRound() {
-  roundActive=true; hasRolled=true;
-  const bonusRerolls = passiveBonuses.rerolls || 0;
+  roundActive = true;
+  hasRolled = false;
+  roundTotal = 0;
   const bonusHands = passiveBonuses.extra_hands || 0;
-  const totalHands = baseHands + bonusHands;
-  rerollsLeft = 3 + bonusRerolls;
+  totalHands = baseHands + bonusHands;
   handsLeft = totalHands;
+  const bonusRerolls = passiveBonuses.rerolls || 0;
+  rerollsLeft = 3 + bonusRerolls;
   selectedDice = [false,false,false,false,false];
-  diceElements.forEach(el=>el.classList.remove('selected'));
+  diceElements.forEach(el => el.classList.remove('selected'));
+  document.getElementById('rerollBtn').disabled = true;
+  document.getElementById('playBtn').disabled = false;
 
-  if (passiveBonuses.limit_reduce && passiveBonuses.limit_reduce>0) {
-    const reduce = passiveBonuses.limit_reduce;
-    window._originalLimit=limit;
-    limit=Math.max(10, limit-reduce);
-    document.getElementById('limitDisplay').textContent=limit;
-    passiveBonuses.limit_reduce=0;
-    showMessage(`💡 Лимит снижен на ${reduce} (текущий: ${limit})`,'info');
-  }
-
-  for(let i=0;i<5;i++) dice[i]=Math.floor(Math.random()*6)+1;
-  updateDiceDisplay(true);
-  updateStats();
-  updateRerollDisplay();
-  updateHandsDisplay();
-  document.getElementById('rerollBtn').disabled=true;
-  document.getElementById('playBtn').disabled=false;
-  document.getElementById('resultMessage').textContent='';
-  document.getElementById('resultMessage').className='result';
+  document.getElementById('handCount').textContent = handsLeft;
+  document.getElementById('rerollCount').textContent = rerollsLeft;
+  document.getElementById('resultMessage').textContent = 'Новый раунд! Бросьте кубики.';
+  document.getElementById('resultMessage').className = 'result info';
+  updateStatsDisplay();
+  firstRoll();
 }
 
+// ===== ПЕРВЫЙ БРОСОК В РАУНДЕ =====
+function firstRoll() {
+  for (let i=0; i<5; i++) dice[i] = Math.floor(Math.random()*6)+1;
+  hasRolled = true;
+  updateDiceDisplay(true);
+  updateStatsDisplay();
+  document.getElementById('rerollBtn').disabled = true;
+  document.getElementById('playBtn').disabled = false;
+}
+
+// ===== ПЕРЕБРОС =====
 function rerollSelected() {
-  if(isRolling) return;
-  if(rerollsLeft<=0){ showMessage('Нет перебросов!','error'); return; }
-  if(!hasRolled||!roundActive) return;
-  let anySelected=false;
-  for(let i=0;i<5;i++){
-    if(selectedDice[i]){
-      dice[i]=Math.floor(Math.random()*6)+1;
-      anySelected=true;
-      selectedDice[i]=false;
+  if (isRolling) return;
+  if (rerollsLeft <= 0) { showMessage('Нет перебросов!','error'); return; }
+  if (!hasRolled || !roundActive) return;
+  let anySelected = false;
+  for (let i=0; i<5; i++) {
+    if (selectedDice[i]) {
+      dice[i] = Math.floor(Math.random()*6)+1;
+      anySelected = true;
+      selectedDice[i] = false;
       diceElements[i].classList.remove('selected');
     }
   }
-  if(!anySelected){ showMessage('Выберите кубики для переброса!','error'); return; }
+  if (!anySelected) { showMessage('Выберите кубики для переброса!','error'); return; }
   rerollsLeft--;
   playSound('roll');
   updateDiceDisplay(true);
-  updateStats();
-  updateRerollDisplay();
-  document.getElementById('rerollBtn').disabled=true;
-  if(rerollsLeft<=0) document.getElementById('rerollBtn').disabled=true;
+  updateStatsDisplay();
+  document.getElementById('rerollBtn').disabled = true;
+  if (rerollsLeft <= 0) document.getElementById('rerollBtn').disabled = true;
+  document.getElementById('rerollCount').textContent = rerollsLeft;
 }
 
+// ===== ИГРАТЬ РУКУ (ход) =====
 function playHand() {
-  if(isRolling) return;
-  if(handsLeft<=0){ showMessage('Нет рук!','error'); return; }
-  if(!hasRolled||!roundActive) return;
-  document.getElementById('playBtn').disabled=true;
-  document.getElementById('rerollBtn').disabled=true;
+  if (isRolling) return;
+  if (handsLeft <= 0) { showMessage('Нет ходов!','error'); return; }
+  if (!hasRolled || !roundActive) return;
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('rerollBtn').disabled = true;
   playSound('click');
 
   let bone = dice.reduce((a,b)=>a+b,0) + (passiveBonuses.bones||0);
   if (passiveBonuses.combo_bones_mult) bone += passiveBonuses.combo_bones_mult.bones||0;
   const handType = getHandType(dice);
-  currentHandType=handType;
+  currentHandType = handType;
+  const baseMultiplier = BASE_MULTIPLIERS[handType]||1;
+  let upgradeBonus = handUpgrades[handType]||0;
+  let multBonus = passiveBonuses.mult||0;
+  if (passiveBonuses.combo_bones_mult) multBonus += passiveBonuses.combo_bones_mult.mult||0;
+  const multiplier = baseMultiplier + upgradeBonus + multBonus;
+  const handTotal = Math.floor(bone * multiplier);
+
+  roundTotal += handTotal;
+  handsLeft--;
+
+  document.getElementById('handCount').textContent = handsLeft;
+  document.getElementById('totalDisplay').textContent = roundTotal;
+  document.getElementById('resultMessage').textContent = `Ход: ${bone} × ${multiplier} = ${handTotal} (всего: ${roundTotal})`;
+  document.getElementById('resultMessage').className = 'result info';
+
+  updateStatsAfterGame(handType, false);
+
+  if (handsLeft === 0) {
+    const isWin = roundTotal >= limit;
+    if (isWin) {
+      document.getElementById('resultMessage').className = 'result win';
+      document.getElementById('resultMessage').textContent = `🎉 Победа! ${roundTotal} ≥ ${limit}`;
+      playSound('win');
+      flashOverlay('win');
+      spawnWinParticles();
+      level++;
+      if (level % 10 === 0) {
+        baseHands++;
+        showMessage(`🎉 Уровень ${level}! +1 рука навсегда! (теперь ${baseHands})`,'success');
+      }
+      limit = Math.floor(limit * 1.3);
+      if (passiveBonuses.extra_level) {
+        const extra = passiveBonuses.extra_level;
+        level += extra;
+        showMessage(`✨ Дополнительный +${extra} уровень!`,'success');
+      }
+      document.getElementById('levelDisplay').textContent = level;
+      document.getElementById('limitDisplay').textContent = limit;
+      stats.total_wins++;
+      stats.current_streak++;
+      if (stats.current_streak > stats.best_streak) stats.best_streak = stats.current_streak;
+      stats.total_games++;
+      saveProgress();
+      checkQuestProgress(handType, true);
+      showUpgradeModal();
+    } else {
+      document.getElementById('resultMessage').className = 'result lose';
+      document.getElementById('resultMessage').textContent = `💀 Поражение! ${roundTotal} < ${limit}`;
+      playSound('lose');
+      flashOverlay('lose');
+      spawnLoseParticles();
+      stats.current_streak = 0;
+      stats.total_games++;
+      saveProgress();
+      checkQuestProgress(handType, false);
+      resetGame();
+    }
+    roundActive = false;
+  } else {
+    hasRolled = false;
+    rerollsLeft = 3 + (passiveBonuses.rerolls || 0);
+    document.getElementById('rerollCount').textContent = rerollsLeft;
+    document.getElementById('rerollBtn').disabled = true;
+    document.getElementById('playBtn').disabled = true;
+    setTimeout(() => {
+      if (roundActive && handsLeft > 0) {
+        for (let i=0; i<5; i++) dice[i] = Math.floor(Math.random()*6)+1;
+        hasRolled = true;
+        updateDiceDisplay(true);
+        updateStatsDisplay();
+        document.getElementById('rerollBtn').disabled = true;
+        document.getElementById('playBtn').disabled = false;
+        document.getElementById('resultMessage').textContent = `Ход ${totalHands - handsLeft + 1} из ${totalHands}`;
+        document.getElementById('resultMessage').className = 'result info';
+      }
+    }, 800);
+  }
+}
+
+// ===== ОТОБРАЖЕНИЕ СТАТИСТИКИ =====
+function updateStatsDisplay() {
+  let bone = dice.reduce((a,b)=>a+b,0) + (passiveBonuses.bones||0);
+  if (passiveBonuses.combo_bones_mult) bone += passiveBonuses.combo_bones_mult.bones||0;
+  const handType = getHandType(dice);
+  currentHandType = handType;
   const baseMultiplier = BASE_MULTIPLIERS[handType]||1;
   let upgradeBonus = handUpgrades[handType]||0;
   let multBonus = passiveBonuses.mult||0;
   if (passiveBonuses.combo_bones_mult) multBonus += passiveBonuses.combo_bones_mult.mult||0;
   const multiplier = baseMultiplier + upgradeBonus + multBonus;
   const total = Math.floor(bone * multiplier);
-
-  const resultEl = document.getElementById('resultMessage');
-  const isWin = total >= limit;
-
-  if(isWin) {
-    const oldLimit=limit;
-    level++;
-    if(level%10===0){
-      baseHands++;
-      showMessage(`🎉 Уровень ${level}! +1 рука навсегда! (теперь ${baseHands})`,'success');
-    }
-    limit=Math.floor(limit*1.3);
-    resultEl.className='result win';
-    resultEl.textContent=`🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${oldLimit} → ${limit})`;
-    if(passiveBonuses.extra_level){ const extra=passiveBonuses.extra_level; level+=extra; showMessage(`✨ Дополнительный +${extra} уровень!`,'success'); }
-    document.getElementById('levelDisplay').textContent=level;
-    document.getElementById('limitDisplay').textContent=limit;
-    playSound('win');
-    flashOverlay('win');
-    spawnWinParticles();
-    updateStatsAfterGame(handType,true);
-    checkQuestProgress(handType,true);
-    saveProgress();
-    showUpgradeModal();
-  } else {
-    resultEl.className='result lose';
-    resultEl.textContent=`💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
-    playSound('lose');
-    flashOverlay('lose');
-    spawnLoseParticles();
-    updateStatsAfterGame(handType,false);
-    checkQuestProgress(handType,false);
-    resetGame();
-  }
-
-  handsLeft--;
-  updateHandsDisplay();
-  if(handsLeft<=0 && !isWin){
-    roundActive=false;
-    document.getElementById('playBtn').disabled=true;
-    document.getElementById('rerollBtn').disabled=true;
-  }
+  document.getElementById('boneDisplay').textContent = bone;
+  document.getElementById('multiplierDisplay').textContent = multiplier;
+  document.getElementById('totalDisplay').textContent = roundTotal;
+  renderInventory();
 }
 
 // ===== СТАТИСТИКА =====
-function updateStatsAfterGame(handType,win){
-  stats.total_games++;
-  if(win){ stats.total_wins++; stats.current_streak++; if(stats.current_streak>stats.best_streak) stats.best_streak=stats.current_streak; }
-  else { stats.current_streak=0; }
-  switch(handType){
+function updateStatsAfterGame(handType, win) {
+  // Здесь мы просто собираем статистику комбинаций, но не увеличиваем total_games и т.д. – это делается при победе/поражении
+  switch(handType) {
     case 'pair': stats.pair_count++; break;
     case 'twoPair': stats.two_pair_count++; break;
     case 'three': stats.three_count++; break;
@@ -405,11 +455,10 @@ function updateStatsAfterGame(handType,win){
     case 'royal': stats.royal_count++; break;
     default: break;
   }
-  saveProgress();
 }
 
-// ===== АЧИВКИ =====
-function checkQuestProgress(handType,win){
+// ===== АЧИВКИ (ЗАДАНИЯ) =====
+function checkQuestProgress(handType, win) {
   fetch('/quests')
     .then(res=>res.json())
     .then(quests=>{
@@ -632,34 +681,6 @@ function updateDiceDisplay(animate=false){
   });
 }
 
-function updateStats(){
-  let bone = dice.reduce((a,b)=>a+b,0) + (passiveBonuses.bones||0);
-  if (passiveBonuses.combo_bones_mult) bone += passiveBonuses.combo_bones_mult.bones||0;
-  const handType=getHandType(dice);
-  currentHandType=handType;
-  const baseMultiplier=BASE_MULTIPLIERS[handType]||1;
-  let upgradeBonus=handUpgrades[handType]||0;
-  let multBonus=passiveBonuses.mult||0;
-  if(passiveBonuses.combo_bones_mult) multBonus+=passiveBonuses.combo_bones_mult.mult||0;
-  const multiplier=baseMultiplier+upgradeBonus+multBonus;
-  const total=Math.floor(bone*multiplier);
-  document.getElementById('boneDisplay').textContent=bone;
-  document.getElementById('multiplierDisplay').textContent=multiplier;
-  document.getElementById('totalDisplay').textContent=total;
-  renderInventory();
-}
-
-function updateRerollDisplay(){
-  document.getElementById('rerollCount').textContent=rerollsLeft;
-  document.getElementById('rerollBtn').disabled=(rerollsLeft<=0||!hasRolled||!roundActive);
-}
-
-function updateHandsDisplay(){
-  const totalHands=baseHands+(passiveBonuses.extra_hands||0);
-  document.getElementById('handCount').textContent=handsLeft;
-  document.getElementById('playBtn').disabled=(handsLeft<=0||!hasRolled||!roundActive);
-}
-
 function renderInventory(){
   const container=document.getElementById('inventoryContainer');
   if(!inventory||inventory.length===0){
@@ -749,7 +770,7 @@ function sendMessage(){
   }).then(()=>{ input.value=''; loadChat(); });
 }
 
-// ===== ПАНЕЛИ (только лидерборд и чат) =====
+// ===== ПАНЕЛИ =====
 function togglePanel(type) {
   const panels = {
     leaderboard: document.getElementById('leaderboardPanel'),
