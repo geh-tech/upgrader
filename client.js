@@ -11,16 +11,16 @@ let isRolling = false;
 let hasRolled = false;
 let roundActive = false;
 
-// ===== БАЗОВЫЕ МНОЖИТЕЛИ =====
+// ===== БАЗОВЫЕ МНОЖИТЕЛИ (ЦЕЛЫЕ ЧИСЛА) =====
 const BASE_MULTIPLIERS = {
   high: 1,
-  pair: 1.2,
-  twoPair: 1.5,
-  three: 2,
-  straight: 2.5,
-  fullHouse: 3.5,
-  four: 4,
-  five: 6
+  pair: 2,
+  twoPair: 3,
+  three: 4,
+  straight: 5,
+  fullHouse: 6,
+  four: 8,
+  five: 12
 };
 
 // ===== ПРОКАЧКИ =====
@@ -39,17 +39,17 @@ let passiveBonuses = {
   bones: 0,
   mult: 0,
   rerolls: 0,
-  extra_hands: 0,      // +руки за раунд
-  extra_rerolls: 0,    // +перебросы (постоянно)
-  limit_reduce: 0,     // снижение лимита на следующий раунд (временно)
-  combo_bones_mult: 0  // комбинированный бонус (кости + множитель) – будем хранить как объект
+  extra_hands: 0,
+  limit_reduce: 0,
+  combo_bones_mult: null, // { bones: number, mult: number }
+  extra_level: 0
 };
 
-// ===== ГЕНЕРАЦИЯ 200+ УЛУЧШЕНИЙ =====
+// ===== ГЕНЕРАЦИЯ 200+ УЛУЧШЕНИЙ (ЦЕЛЫЕ ЧИСЛА) =====
 function generateAllUpgrades() {
   const upgrades = [];
 
-  // 1. Улучшения рук (8 рук × 20 уровней = 160)
+  // 1. Улучшения рук (8 рук × 10 уровней = 80)
   const handTypes = ['high', 'pair', 'twoPair', 'three', 'straight', 'fullHouse', 'four', 'five'];
   const handNames = {
     high: 'Старшая карта',
@@ -61,48 +61,48 @@ function generateAllUpgrades() {
     four: 'Каре',
     five: 'Пять одинаковых'
   };
-  for (let level = 1; level <= 20; level++) {
-    const bonus = level * 0.1; // 0.1, 0.2, ..., 2.0
+  for (let level = 1; level <= 10; level++) {
+    const bonus = level; // 1, 2, ..., 10
     for (const hand of handTypes) {
       upgrades.push({
         id: `upgrade_hand_${hand}_${level}`,
-        name: `⬆ ${handNames[hand]} +${bonus.toFixed(1)}x`,
+        name: `⬆ ${handNames[hand]} +${bonus}x`,
         type: 'hand',
         hand: hand,
         value: bonus,
-        desc: `Множитель +${bonus.toFixed(1)} для ${handNames[hand]}`
+        desc: `Множитель +${bonus} для ${handNames[hand]}`
       });
     }
   }
 
   // 2. Черепа (пассивные бонусы)
-  // 2.1 +кости (от 1 до 10)
-  for (let i = 1; i <= 10; i++) {
+  // 2.1 +кости (5, 10, 15, 20, 25, 30)
+  for (let i = 1; i <= 6; i++) {
+    const val = i * 5;
     upgrades.push({
       id: `passive_bones_${i}`,
-      name: `💀 +${i} кости`,
+      name: `💀 +${val} кости`,
       type: 'passive',
       bonus: 'bones',
-      value: i,
-      desc: `+${i} к костям в каждом раунде`
+      value: val,
+      desc: `+${val} к костям в каждом раунде`
     });
   }
 
-  // 2.2 +множитель (0.1 до 1.0)
-  for (let i = 1; i <= 10; i++) {
-    const val = i * 0.1;
+  // 2.2 +множитель (1, 2, 3, 4, 5)
+  for (let i = 1; i <= 5; i++) {
     upgrades.push({
       id: `passive_mult_${i}`,
-      name: `💀 +${val.toFixed(1)} множитель`,
+      name: `💀 +${i} множитель`,
       type: 'passive',
       bonus: 'mult',
-      value: val,
-      desc: `+${val.toFixed(1)} к множителю в каждом раунде`
+      value: i,
+      desc: `+${i} к множителю в каждом раунде`
     });
   }
 
-  // 2.3 +перебросы (1 до 5)
-  for (let i = 1; i <= 5; i++) {
+  // 2.3 +перебросы (1, 2, 3)
+  for (let i = 1; i <= 3; i++) {
     upgrades.push({
       id: `passive_rerolls_${i}`,
       name: `💀 +${i} переброс`,
@@ -113,8 +113,8 @@ function generateAllUpgrades() {
     });
   }
 
-  // 2.4 +руки за раунд (1 до 3)
-  for (let i = 1; i <= 3; i++) {
+  // 2.4 +руки за раунд (1, 2)
+  for (let i = 1; i <= 2; i++) {
     upgrades.push({
       id: `passive_hands_${i}`,
       name: `💀 +${i} рука`,
@@ -125,45 +125,41 @@ function generateAllUpgrades() {
     });
   }
 
-  // 2.5 Снижение лимита (на -5, -10, -15, -20)
-  for (let i = 1; i <= 4; i++) {
-    const reduce = i * 5;
+  // 2.5 Снижение лимита (10, 20, 30)
+  for (let i = 1; i <= 3; i++) {
+    const val = i * 10;
     upgrades.push({
       id: `passive_limit_reduce_${i}`,
-      name: `💀 Лимит -${reduce}`,
+      name: `💀 Лимит -${val}`,
       type: 'passive',
       bonus: 'limit_reduce',
-      value: reduce,
-      desc: `Снижает лимит на ${reduce} в следующем раунде (одноразово)`
+      value: val,
+      desc: `Снижает лимит на ${val} в следующем раунде (одноразово)`
     });
   }
 
   // 2.6 Комбинированные: +кости и +множитель (несколько вариантов)
   const combos = [
-    { b: 2, m: 0.2 },
-    { b: 3, m: 0.3 },
-    { b: 4, m: 0.4 },
-    { b: 5, m: 0.5 },
-    { b: 6, m: 0.6 },
-    { b: 7, m: 0.7 },
-    { b: 8, m: 0.8 },
-    { b: 9, m: 0.9 },
-    { b: 10, m: 1.0 }
+    { b: 5, m: 1 },
+    { b: 10, m: 2 },
+    { b: 15, m: 3 },
+    { b: 20, m: 4 },
+    { b: 25, m: 5 }
   ];
   for (let i = 0; i < combos.length; i++) {
     const c = combos[i];
     upgrades.push({
       id: `passive_combo_${i}`,
-      name: `💀 +${c.b} кости +${c.m.toFixed(1)} множ`,
+      name: `💀 +${c.b} кости +${c.m} множ`,
       type: 'passive',
       bonus: 'combo_bones_mult',
       value: { bones: c.b, mult: c.m },
-      desc: `+${c.b} к костям и +${c.m.toFixed(1)} к множителю`
+      desc: `+${c.b} к костям и +${c.m} к множителю`
     });
   }
 
-  // 2.7 Бонус к уровню (ускорение) – добавляем +1 уровень при победе (редкое)
-  for (let i = 1; i <= 3; i++) {
+  // 2.7 Бонус к уровню (+1, +2)
+  for (let i = 1; i <= 2; i++) {
     upgrades.push({
       id: `passive_extra_level_${i}`,
       name: `💀 +${i} уровень при победе`,
@@ -174,14 +170,14 @@ function generateAllUpgrades() {
     });
   }
 
+  // 2.8 Бонус: при победе удваиваем кости (экспериментально)
+  // Пока не будем, чтобы не усложнять.
+
   return upgrades;
 }
 
-// Генерируем пул
 const ALL_UPGRADES = generateAllUpgrades();
 console.log(`✅ Сгенерировано ${ALL_UPGRADES.length} улучшений`);
-
-// ===== ОСТАЛЬНОЙ КОД (без изменений) =====
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 const diceElements = document.querySelectorAll('.dice');
@@ -201,7 +197,6 @@ diceElements.forEach((el, i) => {
 function startRound() {
   roundActive = true;
   hasRolled = true;
-  // Применяем бонусы к перебросам и рукам
   const bonusRerolls = passiveBonuses.rerolls || 0;
   const bonusHands = passiveBonuses.extra_hands || 0;
   rerollsLeft = 3 + bonusRerolls;
@@ -209,15 +204,11 @@ function startRound() {
   selectedDice = [false, false, false, false, false];
   diceElements.forEach(el => el.classList.remove('selected'));
 
-  // Если есть снижение лимита – применяем одноразово
   if (passiveBonuses.limit_reduce && passiveBonuses.limit_reduce > 0) {
     const reduce = passiveBonuses.limit_reduce;
-    // Временно уменьшаем лимит для этого раунда
-    // Сохраним оригинальный лимит, чтобы после раунда вернуть
     window._originalLimit = limit;
     limit = Math.max(10, limit - reduce);
     document.getElementById('limitDisplay').textContent = limit;
-    // Сбрасываем бонус, чтобы не применялся повторно
     passiveBonuses.limit_reduce = 0;
     showMessage(`💡 Лимит снижен на ${reduce} (текущий: ${limit})`, 'info');
   }
@@ -279,15 +270,13 @@ function playHand() {
   document.getElementById('playBtn').disabled = true;
   document.getElementById('rerollBtn').disabled = true;
 
-  // Рассчёт костей и множителя с учётом бонусов
+  // Рассчёт костей
   let bone = dice.reduce((a, b) => a + b, 0) + (passiveBonuses.bones || 0);
-  // Если есть комбинированный бонус
   if (passiveBonuses.combo_bones_mult) {
-    const combo = passiveBonuses.combo_bones_mult;
-    bone += combo.bones || 0;
+    bone += passiveBonuses.combo_bones_mult.bones || 0;
   }
   const handType = getHandType(dice);
-  const baseMultiplier = calculateMultiplier(dice);
+  const baseMultiplier = BASE_MULTIPLIERS[handType] || 1;
   let upgradeBonus = handUpgrades[handType] || 0;
   let multBonus = passiveBonuses.mult || 0;
   if (passiveBonuses.combo_bones_mult) {
@@ -300,16 +289,13 @@ function playHand() {
   const isWin = total >= limit;
 
   if (isWin) {
-    // ===== ПОБЕДА =====
+    // ПОБЕДА
     resultEl.className = 'result win';
-    resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier.toFixed(2)} = ${total} (лимит ${limit})`;
+    resultEl.textContent = `🎉 Победа! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
 
-    // Уровень
     level++;
-    // Лимит +20
     limit += 20;
 
-    // Если есть бонус к дополнительному уровню
     if (passiveBonuses.extra_level) {
       const extra = passiveBonuses.extra_level;
       level += extra;
@@ -320,24 +306,19 @@ function playHand() {
     document.getElementById('limitDisplay').textContent = limit;
 
     saveProgress();
-
-    // Показываем выбор улучшений
     showUpgradeModal();
   } else {
-    // ===== ПОРАЖЕНИЕ =====
+    // ПОРАЖЕНИЕ
     resultEl.className = 'result lose';
-    resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier.toFixed(2)} = ${total} (лимит ${limit})`;
+    resultEl.textContent = `💀 Поражение! ${bone} × ${multiplier} = ${total} (лимит ${limit})`;
 
-    // При поражении сгорает последнее добавленное улучшение
     if (inventory.length > 0) {
       const lostItem = inventory.pop();
-      // Откатываем прокачку
       if (lostItem.type === 'hand') {
         handUpgrades[lostItem.hand] = (handUpgrades[lostItem.hand] || 0) - lostItem.value;
       } else if (lostItem.type === 'passive') {
         const bonus = lostItem.bonus;
         if (bonus === 'combo_bones_mult') {
-          // сбрасываем комбо
           passiveBonuses.combo_bones_mult = null;
         } else if (bonus === 'extra_level' || bonus === 'limit_reduce' || bonus === 'extra_hands' || bonus === 'extra_rerolls') {
           passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) - lostItem.value;
@@ -386,7 +367,6 @@ function playHand() {
 // ===== УЛУЧШЕНИЯ =====
 
 function showUpgradeModal() {
-  // Выбираем 3 случайных из огромного пула
   const shuffled = [...ALL_UPGRADES].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, 3);
 
@@ -416,17 +396,13 @@ function applyUpgrade(index) {
   if (!upgrade) return;
 
   if (upgrade.type === 'hand') {
-    // Улучшение руки
     handUpgrades[upgrade.hand] = (handUpgrades[upgrade.hand] || 0) + upgrade.value;
-    showMessage(`✅ Улучшена комбинация "${getHandName(upgrade.hand)}"! +${upgrade.value.toFixed(1)} к множителю`, 'success');
+    showMessage(`✅ Улучшена комбинация "${getHandName(upgrade.hand)}"! +${upgrade.value} к множителю`, 'success');
   } else if (upgrade.type === 'passive') {
-    // Пассивный бонус
     const bonus = upgrade.bonus;
     const value = upgrade.value;
     if (bonus === 'combo_bones_mult') {
       passiveBonuses.combo_bones_mult = value;
-    } else if (bonus === 'extra_level' || bonus === 'limit_reduce' || bonus === 'extra_hands' || bonus === 'extra_rerolls') {
-      passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) + value;
     } else {
       passiveBonuses[bonus] = (passiveBonuses[bonus] || 0) + value;
     }
@@ -442,7 +418,6 @@ function applyUpgrade(index) {
     showMessage(`✅ Получен череп: +${value} к ${bonusNames[bonus] || bonus}!`, 'success');
   }
 
-  // Сохраняем в инвентарь
   const inventoryItem = {
     id: upgrade.id,
     name: upgrade.name,
@@ -455,12 +430,10 @@ function applyUpgrade(index) {
   inventory.push(inventoryItem);
   renderInventory();
 
-  // Закрываем модалку
   const modal = document.querySelector('.upgrade-modal');
   if (modal) modal.remove();
 
   saveProgress();
-
   setTimeout(() => {
     startRound();
   }, 500);
@@ -485,11 +458,6 @@ function getHandType(diceValues) {
   if (sorted[0] === 2 && sorted[1] === 2) return 'twoPair';
   if (sorted[0] === 2) return 'pair';
   return 'high';
-}
-
-function calculateMultiplier(diceValues) {
-  const type = getHandType(diceValues);
-  return BASE_MULTIPLIERS[type] || 1;
 }
 
 function getHandName(type) {
@@ -524,7 +492,7 @@ function updateStats() {
     bone += passiveBonuses.combo_bones_mult.bones || 0;
   }
   const handType = getHandType(dice);
-  const baseMultiplier = calculateMultiplier(dice);
+  const baseMultiplier = BASE_MULTIPLIERS[handType] || 1;
   let upgradeBonus = handUpgrades[handType] || 0;
   let multBonus = passiveBonuses.mult || 0;
   if (passiveBonuses.combo_bones_mult) {
@@ -533,7 +501,7 @@ function updateStats() {
   const multiplier = baseMultiplier + upgradeBonus + multBonus;
   const total = Math.floor(bone * multiplier);
   document.getElementById('boneDisplay').textContent = bone;
-  document.getElementById('multiplierDisplay').textContent = multiplier.toFixed(2);
+  document.getElementById('multiplierDisplay').textContent = multiplier;
   document.getElementById('totalDisplay').textContent = total;
 }
 
@@ -560,10 +528,10 @@ function renderInventory() {
     const icon = isHand ? '🎯' : '💀';
     let valueText = '';
     if (isHand) {
-      valueText = `+${item.value.toFixed(1)}x`;
+      valueText = `+${item.value}x`;
     } else {
       if (typeof item.value === 'object') {
-        valueText = `+${item.value.bones}к +${item.value.mult.toFixed(1)}м`;
+        valueText = `+${item.value.bones}к +${item.value.mult}м`;
       } else {
         valueText = `+${item.value}`;
       }
@@ -669,7 +637,7 @@ async function loadGameData() {
         high: 0, pair: 0, twoPair: 0, three: 0,
         straight: 0, fullHouse: 0, four: 0, five: 0
       };
-      passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, extra_rerolls: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+      passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
       document.getElementById('levelDisplay').textContent = level;
       document.getElementById('limitDisplay').textContent = limit;
       renderInventory();
@@ -714,7 +682,7 @@ async function fetchUser() {
           high: 0, pair: 0, twoPair: 0, three: 0,
           straight: 0, fullHouse: 0, four: 0, five: 0
         };
-        passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, extra_rerolls: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
+        passiveBonuses = data.passive_bonuses || { bones: 0, mult: 0, rerolls: 0, extra_hands: 0, limit_reduce: 0, combo_bones_mult: null, extra_level: 0 };
         document.getElementById('levelDisplay').textContent = level;
         document.getElementById('limitDisplay').textContent = limit;
         renderInventory();
