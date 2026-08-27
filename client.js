@@ -581,6 +581,48 @@ async function buyPermanentUpgrade(itemId) {
   }
 }
 
+// ===== ЗАДАНИЯ (МОДАЛКА) =====
+async function showQuests() {
+  try {
+    const res = await fetch('/quests');
+    const quests = await res.json();
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'questsModal';
+    let content = '';
+    if (!quests || quests.length === 0) {
+      content = '<div style="color:#aaa;padding:20px;text-align:center;">Нет заданий на сегодня</div>';
+    } else {
+      content = quests.map(q => `
+        <div class="quest-item ${q.completed ? 'completed' : ''}" style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.06);margin-bottom:10px;">
+          <div class="desc">${q.desc}</div>
+          <div class="progress" style="margin-top:6px;height:6px;background:#333;border-radius:3px;overflow:hidden;">
+            <div class="progress-bar" style="width:${Math.min(100, (q.progress/q.target)*100)}%;height:100%;background:linear-gradient(90deg,#ffd700,#ff8c00);transition:width 0.3s;"></div>
+          </div>
+          <div class="reward" style="font-size:0.8rem;color:#aaa;margin-top:4px;">🎁 ${q.reward} монет</div>
+        </div>
+      `).join('');
+    }
+    modal.innerHTML = `
+      <div class="modal-content quest-modal-content">
+        <h2>📋 Задания на сегодня</h2>
+        <div id="questsList" style="max-height:60vh;overflow-y:auto;margin-top:15px;">
+          ${content}
+        </div>
+        <button onclick="closeQuests()" class="close-btn" style="margin-top:15px;display:block;margin-left:auto;margin-right:auto;padding:10px 30px;border:none;border-radius:30px;background:#444;color:#fff;cursor:pointer;">Закрыть</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } catch(e) {
+    showMessage('Ошибка загрузки заданий','error');
+  }
+}
+
+function closeQuests() {
+  const modal = document.getElementById('questsModal');
+  if (modal) modal.remove();
+}
+
 // ===== ОТОБРАЖЕНИЕ =====
 function updateDiceDisplay(animate=false){
   diceElements.forEach((el,i)=>{
@@ -663,7 +705,7 @@ async function saveProgress(){
   } catch(e){}
 }
 
-// ===== ЛИДЕРБОРД, ЧАТ, ЗАДАНИЯ =====
+// ===== ЛИДЕРБОРД, ЧАТ =====
 function loadLeaderboard(){
   fetch('/leaderboard')
     .then(res=>res.json())
@@ -707,42 +749,14 @@ function sendMessage(){
   }).then(()=>{ input.value=''; loadChat(); });
 }
 
-function loadQuests(){
-  fetch('/quests')
-    .then(res=>res.json())
-    .then(quests=>{
-      const container=document.getElementById('questsList');
-      if (!quests || quests.length === 0) {
-        container.innerHTML = '<div style="color:#aaa;padding:20px;text-align:center;">Нет заданий на сегодня</div>';
-        return;
-      }
-      container.innerHTML=quests.map(q=>`
-        <div class="quest-item ${q.completed?'completed':''}">
-          <div class="desc">${q.desc}</div>
-          <div class="progress">
-            <div class="progress-bar" style="width:${Math.min(100,(q.progress/q.target)*100)}%"></div>
-          </div>
-          <div class="reward">🎁 ${q.reward} монет</div>
-        </div>
-      `).join('');
-    })
-    .catch(()=>{
-      document.getElementById('questsList').innerHTML = '<div style="color:#ff6b6b;padding:20px;text-align:center;">Ошибка загрузки заданий</div>';
-    });
-}
-
-// ===== ПАНЕЛИ =====
+// ===== ПАНЕЛИ (только лидерборд и чат) =====
 function togglePanel(type) {
   const panels = {
     leaderboard: document.getElementById('leaderboardPanel'),
-    chat: document.getElementById('chatPanel'),
-    quests: document.getElementById('questsPanel')
+    chat: document.getElementById('chatPanel')
   };
   const panel = panels[type];
-  if (!panel) {
-    console.error(`❌ Панель ${type} не найдена`);
-    return;
-  }
+  if (!panel) return;
   if (panel.classList.contains('open')) {
     panel.classList.remove('open');
   } else {
@@ -750,7 +764,6 @@ function togglePanel(type) {
     panel.classList.add('open');
     if (type === 'leaderboard') loadLeaderboard();
     if (type === 'chat') loadChat();
-    if (type === 'quests') loadQuests();
   }
 }
 
@@ -834,7 +847,6 @@ async function loadGameData(){
       if(!data.tutorial_shown) showTutorial();
       startRound();
       setInterval(loadChat,5000);
-      setInterval(loadQuests,15000);
       setInterval(loadCoins,10000);
     }
   } catch(e){ showMessage('Ошибка загрузки данных','error'); }
@@ -885,7 +897,6 @@ async function fetchUser(){
         if(!data.tutorial_shown) showTutorial();
         startRound();
         setInterval(loadChat,5000);
-        setInterval(loadQuests,15000);
         setInterval(loadCoins,10000);
       }
     }

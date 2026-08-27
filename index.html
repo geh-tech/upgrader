@@ -15,7 +15,7 @@
 <div id="particlesContainer"></div>
 <div id="flashOverlay"></div>
 
-<!-- Боковые панели -->
+<!-- Боковые панели (только лидерборд и чат) -->
 <div id="leaderboardPanel" class="slide-panel left">
   <div class="panel-header">
     <h2>🏆 Лидерборд</h2>
@@ -36,14 +36,6 @@
   </div>
 </div>
 
-<div id="questsPanel" class="slide-panel right" style="right: -400px;">
-  <div class="panel-header">
-    <h2>📋 Задания</h2>
-    <button class="close-panel" onclick="togglePanel('quests')">✕</button>
-  </div>
-  <div id="questsList"></div>
-</div>
-
 <!-- Основной контейнер -->
 <div class="container">
   <div class="header">
@@ -54,7 +46,7 @@
 
   <div class="top-bar">
     <button class="top-btn" onclick="togglePanel('leaderboard')">🏆</button>
-    <button class="top-btn" onclick="togglePanel('quests')">📋</button>
+    <button class="top-btn" onclick="showQuests()">📋</button>
     <button class="top-btn" onclick="togglePanel('chat')">💬</button>
     <button class="top-btn" onclick="showShop()">🛒</button>
   </div>
