@@ -1,3 +1,4 @@
+/* ===== ГЛОБАЛЬНЫЕ ===== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,173 +6,221 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #0b0b0b;
-  color: #f0e6d0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #0a0a0f;
+  color: #e0e0e0;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 20px;
+  background-image: radial-gradient(circle at 20% 50%, #1a0a2e 0%, #0a0a0f 80%);
+  overflow-x: hidden;
 }
 
 .container {
-  max-width: 700px;
+  max-width: 720px;
   width: 100%;
-  background: #1a1a1a;
-  border-radius: 24px;
-  padding: 30px;
-  box-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
-  border: 1px solid #2a2a2a;
+  background: rgba(20, 20, 30, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 40px;
+  padding: 35px 30px;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 215, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 25px;
 }
 
 h1 {
-  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
   font-size: 2.2rem;
-  margin-bottom: 10px;
-  color: #ffd700;
-  text-shadow: 0 0 20px #ffd70055;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
   letter-spacing: 2px;
 }
 
 .subtitle {
-  text-align: center;
-  color: #aaa;
-  margin-bottom: 25px;
+  color: #a0a0b0;
   font-size: 0.95rem;
+  margin-top: 5px;
+  font-weight: 300;
+  letter-spacing: 1px;
 }
 
-/* Авторизация */
+/* ===== АВТОРИЗАЦИЯ ===== */
 .auth-section {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 12px;
   justify-content: center;
   margin-bottom: 25px;
 }
 .auth-section input {
-  padding: 10px 14px;
+  padding: 12px 18px;
   border-radius: 30px;
   border: 1px solid #333;
-  background: #111;
+  background: rgba(0, 0, 0, 0.4);
   color: #fff;
   min-width: 140px;
   flex: 1;
+  font-size: 0.95rem;
+  transition: border 0.3s;
+}
+.auth-section input:focus {
+  border-color: #ffd700;
+  outline: none;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
 }
 .auth-section button {
-  padding: 10px 25px;
+  padding: 12px 25px;
   border: none;
   border-radius: 30px;
-  background: #ffd700;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
   color: #111;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  transition: 0.2s;
+  transition: 0.3s;
   flex: 1;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
 }
 .auth-section button:hover {
-  background: #ffed4a;
-  transform: scale(1.02);
+  transform: scale(1.03);
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
 }
 
+/* ===== ИГРОВОЙ ИНТЕРФЕЙС ===== */
 .user-info {
-  text-align: center;
-  margin: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 5px;
+  margin-bottom: 10px;
   font-size: 1.1rem;
-  color: #ccc;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .user-info span {
   color: #ffd700;
-  font-weight: bold;
+  font-weight: 600;
 }
 .logout-btn {
-  padding: 4px 16px;
+  padding: 6px 18px;
   border: none;
   border-radius: 20px;
-  background: #444;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
   cursor: pointer;
-  margin-left: 15px;
+  transition: 0.2s;
+  font-size: 0.85rem;
 }
 .logout-btn:hover {
-  background: #555;
+  background: rgba(255, 100, 100, 0.2);
+  color: #ff6b6b;
 }
 
-/* Статус */
+/* ===== СТАТУС БАР ===== */
 .status-bar {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  background: #222;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
   padding: 12px 10px;
-  border-radius: 16px;
   margin: 15px 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .status-item {
   text-align: center;
-  font-size: 0.8rem;
-  color: #aaa;
 }
-.status-item span {
+.status-item .label {
+  display: block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  margin-bottom: 2px;
+}
+.status-item .value {
   display: block;
   font-size: 1.4rem;
-  font-weight: bold;
+  font-weight: 700;
+  font-family: 'Orbitron', monospace;
   color: #ffd700;
-  margin-top: 2px;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+  line-height: 1.2;
 }
 
-/* Кубики */
+/* ===== КУБИКИ ===== */
 .dice-container {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  margin: 25px 0;
+  gap: 14px;
+  margin: 20px 0 15px;
   flex-wrap: wrap;
 }
 .dice {
-  width: 70px;
-  height: 70px;
-  background: #252525;
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(145deg, #1e1e2a, #15151e);
   border: 2px solid #333;
-  border-radius: 16px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.8rem;
+  font-size: 3rem;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.4, 1);
   user-select: none;
+  box-shadow: 0 8px 0 #0a0a0f, 0 4px 15px rgba(0, 0, 0, 0.5);
+  color: #e0e0e0;
 }
 .dice:hover {
   border-color: #ffd700;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 0 #0a0a0f, 0 8px 30px rgba(255, 215, 0, 0.15);
 }
 .dice.selected {
   border-color: #ff4444;
-  background: #2a1a1a;
+  background: linear-gradient(145deg, #2a1a1a, #1a0a0a);
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.3), 0 8px 0 #0a0a0f;
+  transform: translateY(-6px);
 }
 .dice.locked {
   border-color: #69db7c;
-  background: #1a2a1a;
+  background: linear-gradient(145deg, #1a2a1a, #0a1a0a);
+  box-shadow: 0 0 30px rgba(105, 219, 124, 0.2), 0 8px 0 #0a0a0f;
 }
 .dice.disabled {
   cursor: default;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-/* Информационная строка */
+/* ===== ИНФО РЯД ===== */
 .info-row {
   display: flex;
   justify-content: space-around;
   margin: 10px 0 15px;
   font-size: 1rem;
   color: #aaa;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 10px;
+  border-radius: 30px;
 }
 .info-row strong {
   color: #ffd700;
   font-size: 1.2rem;
+  font-family: 'Orbitron', monospace;
 }
 
-/* Кнопки */
+/* ===== КНОПКИ ===== */
 .actions {
   display: flex;
   gap: 15px;
@@ -179,65 +228,82 @@ h1 {
   margin: 10px 0 15px;
 }
 .actions button {
-  padding: 12px 30px;
+  padding: 14px 30px;
   border: none;
   border-radius: 30px;
-  font-weight: bold;
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: 1rem;
   cursor: pointer;
-  transition: 0.2s;
+  transition: 0.3s;
   flex: 1;
   max-width: 220px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 .actions button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 #rerollBtn {
-  background: #1a4a7a;
+  background: linear-gradient(135deg, #2a4a7a, #1a3a5a);
   color: #fff;
 }
 #rerollBtn:hover:not(:disabled) {
-  background: #2a5a9a;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(42, 74, 122, 0.5);
 }
 #playBtn {
-  background: #b8860b;
+  background: linear-gradient(135deg, #d4a017, #b8860b);
   color: #fff;
 }
 #playBtn:hover:not(:disabled) {
-  background: #d4a017;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(212, 160, 23, 0.5);
 }
 
+/* ===== РЕЗУЛЬТАТ ===== */
 .result {
   text-align: center;
-  font-size: 1.3rem;
-  min-height: 40px;
+  font-size: 1.2rem;
+  min-height: 44px;
   margin: 15px 0;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 12px 15px;
+  border-radius: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  background: rgba(0, 0, 0, 0.3);
 }
 .result.win {
   color: #69db7c;
-  background: #1a2a1a;
+  background: rgba(105, 219, 124, 0.1);
+  border: 1px solid rgba(105, 219, 124, 0.2);
 }
 .result.lose {
   color: #ff6b6b;
-  background: #2a1a1a;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.2);
 }
 .result.info {
   color: #ffd700;
-  background: #2a2a1a;
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.15);
 }
 
-/* Инвентарь */
+/* ===== ИНВЕНТАРЬ ===== */
 .inventory-section {
   margin-top: 25px;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding-top: 20px;
 }
 .inventory-section h3 {
   color: #aaa;
   margin-bottom: 12px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  font-size: 1rem;
 }
 .inventory-grid {
   display: grid;
@@ -254,23 +320,27 @@ h1 {
   border-radius: 10px;
 }
 .inv-item {
-  background: #252525;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
   padding: 10px;
   text-align: center;
-  border: 1px solid #333;
-  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: 0.2s;
+}
+.inv-item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 .inv-item .inv-name {
-  font-weight: bold;
+  font-weight: 600;
   color: #fff;
+  font-size: 0.85rem;
 }
 .inv-item .inv-level {
   color: #ffd700;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 .inv-item .inv-price {
-  color: #aaa;
+  color: #888;
   font-size: 0.7rem;
 }
 .inv-item.lost {
@@ -278,138 +348,129 @@ h1 {
   opacity: 0.5;
 }
 
+/* ===== СООБЩЕНИЯ ===== */
 .error-msg {
   color: #ff6b6b;
   text-align: center;
   margin: 10px 0;
+  font-weight: 500;
 }
 .success-msg {
   color: #69db7c;
   text-align: center;
   margin: 10px 0;
+  font-weight: 500;
 }
 
-@media (max-width: 500px) {
-  .container { padding: 20px; }
-  .dice { width: 55px; height: 55px; font-size: 2rem; }
-  .status-bar { grid-template-columns: repeat(3, 1fr); }
-  .actions button { padding: 10px 20px; font-size: 1rem; }
-}
-/* ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА УЛУЧШЕНИЙ ===== */
+/* ===== МОДАЛКА УЛУЧШЕНИЙ ===== */
 .upgrade-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: modalFadeIn 0.4s ease;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .upgrade-modal-content {
-    background: #1a1a1a;
-    border: 2px solid #ffd700;
-    border-radius: 24px;
-    padding: 30px 25px;
-    max-width: 600px;
-    width: 95%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 0 60px rgba(255, 215, 0, 0.2);
+  background: linear-gradient(145deg, #1a1a2e, #0f0f1a);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 32px;
+  padding: 35px 30px;
+  max-width: 600px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 215, 0, 0.05);
 }
 
 .upgrade-modal-content h2 {
-    text-align: center;
-    color: #ffd700;
-    font-size: 2rem;
-    margin-bottom: 5px;
-    text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 2rem;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 5px;
 }
-
 .upgrade-subtitle {
-    text-align: center;
-    color: #aaa;
-    margin-bottom: 20px;
-    font-size: 1rem;
+  text-align: center;
+  color: #aaa;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
 }
 
 .upgrade-options {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-
 .upgrade-option {
-    background: #252525;
-    border: 1px solid #333;
-    border-radius: 16px;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.2s;
-    cursor: default;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.25s;
+  cursor: default;
 }
-
 .upgrade-option:hover {
-    border-color: #ffd700;
-    background: #2a2a2a;
-    transform: translateX(4px);
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.05);
+  transform: translateX(6px);
 }
-
 .upgrade-option .upgrade-name {
-    font-weight: bold;
-    color: #ffd700;
-    font-size: 1.1rem;
-    min-width: 140px;
+  font-weight: 700;
+  color: #ffd700;
+  font-size: 1rem;
+  min-width: 130px;
 }
-
 .upgrade-option .upgrade-desc {
-    color: #ccc;
-    font-size: 0.9rem;
-    flex: 1;
-    margin: 0 15px;
+  color: #ccc;
+  font-size: 0.9rem;
+  flex: 1;
+  margin: 0 15px;
 }
-
 .upgrade-select-btn {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 30px;
-    background: #ffd700;
-    color: #111;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-    font-size: 0.9rem;
-    white-space: nowrap;
+  padding: 8px 24px;
+  border: none;
+  border-radius: 30px;
+  background: linear-gradient(135deg, #ffd700, #f0a500);
+  color: #111;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.25s;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
 }
-
 .upgrade-select-btn:hover {
-    background: #ffed4a;
-    transform: scale(1.05);
+  transform: scale(1.06);
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
 }
 
-@media (max-width: 500px) {
-    .upgrade-option {
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        text-align: center;
-    }
-    .upgrade-option .upgrade-name {
-        min-width: 100%;
-    }
-    .upgrade-option .upgrade-desc {
-        margin: 0 0 10px 0;
-        width: 100%;
-    }
+@media (max-width: 550px) {
+  .container { padding: 20px; }
+  .dice { width: 58px; height: 58px; font-size: 2.4rem; }
+  .status-bar { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .status-item .value { font-size: 1.1rem; }
+  .upgrade-option { flex-wrap: wrap; gap: 10px; justify-content: center; text-align: center; }
+  .upgrade-option .upgrade-name { min-width: 100%; }
+  .upgrade-option .upgrade-desc { margin: 0 0 10px; width: 100%; }
+  .actions button { padding: 12px 20px; font-size: 0.9rem; }
 }

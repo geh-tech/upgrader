@@ -4,13 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎲 Dice of Kalma</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
 <div class="container">
-  <h1>🎲 Dice of Kalma</h1>
-  <div class="subtitle">Собери комбинацию, побей лимит</div>
+  <div class="header">
+    <h1>🎲 Dice of Kalma</h1>
+    <p class="subtitle">Брось кубики, собери комбинацию, победи лимит</p>
+  </div>
 
   <!-- Авторизация -->
   <div id="authSection" class="auth-section">
@@ -23,32 +28,47 @@
   <!-- Игровой интерфейс -->
   <div id="gameSection" style="display:none;">
     <div class="user-info">
-      Привет, <span id="usernameDisplay"></span>
+      <span>Привет, <span id="usernameDisplay"></span></span>
       <button class="logout-btn" onclick="logout()">Выйти</button>
     </div>
 
-    <!-- Статус -->
+    <!-- Статус бар -->
     <div class="status-bar">
-      <div class="status-item">Уровень <span id="levelDisplay">1</span></div>
-      <div class="status-item">Лимит <span id="limitDisplay">100</span></div>
-      <div class="status-item">Кость <span id="boneDisplay">0</span></div>
-      <div class="status-item">Множ <span id="multiplierDisplay">0</span>x</div>
-      <div class="status-item">Итог <span id="totalDisplay">0</span></div>
+      <div class="status-item">
+        <span class="label">Уровень</span>
+        <span class="value" id="levelDisplay">1</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Лимит</span>
+        <span class="value" id="limitDisplay">25</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Кость</span>
+        <span class="value" id="boneDisplay">0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Множ</span>
+        <span class="value" id="multiplierDisplay">0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Итог</span>
+        <span class="value" id="totalDisplay">0</span>
+      </div>
     </div>
 
     <!-- Кубики -->
     <div class="dice-container" id="diceContainer">
       <div class="dice" data-index="0">⚀</div>
-      <div class="dice" data-index="1">⚀</div>
-      <div class="dice" data-index="2">⚀</div>
-      <div class="dice" data-index="3">⚀</div>
-      <div class="dice" data-index="4">⚀</div>
+      <div class="dice" data-index="1">⚁</div>
+      <div class="dice" data-index="2">⚂</div>
+      <div class="dice" data-index="3">⚃</div>
+      <div class="dice" data-index="4">⚄</div>
     </div>
 
     <!-- Информация о перебросах и руках -->
     <div class="info-row">
-      <span>Перебросов: <strong id="rerollCount">3</strong></span>
-      <span>Рук: <strong id="handCount">3</strong></span>
+      <span>🔄 Перебросов: <strong id="rerollCount">3</strong></span>
+      <span>🎯 Рук: <strong id="handCount">3</strong></span>
     </div>
 
     <!-- Кнопки -->
